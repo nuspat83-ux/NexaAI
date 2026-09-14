@@ -2,7 +2,7 @@ import type {WebsiteSpec} from './types.js';
 
 const esc=(v:string)=>v.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 const cssSafe=(v:string)=>v.replace(/[\r\n{};]/g,'');
-const idFor=(v:string)=>v.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'section';
+const idFor=(v:string)=>v.trim().toLowerCase()==='home'?'top':(v.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'section');
 const validImage=(v:string)=>v.startsWith('data:image/')||/^https?:\/\//i.test(v);
 
 export function websiteHtml(spec:WebsiteSpec){
