@@ -41,7 +41,7 @@ test('exact restaurant scope keeps basics inexpensive', () => {
 
 test('generated restaurant export contains the selected customer experience', () => {
   const html = websiteHtml(restaurant);
-  for (const needle of ['Premium Indian Restaurant','Contemporary Indian dining','restaurant-hero.jpg','mailto:hello@premiumindianrestaurant.com','google.com/maps/search','wa.me/','application/ld+json','Open navigation','Send enquiry']) assert.ok(html.includes(needle), `missing ${needle}`);
+  for (const needle of ['Premium Indian Restaurant','Contemporary Indian dining','data:image/jpeg;base64,AAAA','mailto:hello@premiumindianrestaurant.com','google.com/maps/search','wa.me/','application/ld+json','Open navigation','Send enquiry']) assert.ok(html.includes(needle), `missing ${needle}`);
   assert.doesNotMatch(html, /lorem ipsum/i);
   assert.doesNotMatch(html, /coming soon|not implemented|placeholder|dummy|fake/i);
   assert.match(html, /@media\(max-width:860px\)/);
