@@ -1,19 +1,29 @@
 import type { BuilderState, WebsiteSpec } from '../types';
 
-export function buildWebsiteSpec(s: BuilderState): WebsiteSpec {
-  const business = s.businessName || s.customBusiness || s.category;
-  const personality = s.styles.length ? s.styles : ['Modern','Premium'];
-  return { business, audience:s.audience || 'Customers looking for a credible, easy-to-use business website', personality, colors:{primary:s.primary,secondary:s.secondary}, typography:s.font, pages:s.pages, sections:s.sections, features:s.features, content:s.description || s.brief || `A professional ${s.category.toLowerCase()} website built around trust and conversion.`, imageRequirements:s.assets.length ? s.assets.map(a=>a.name) : ['High-quality brand photography','Editorial supporting imagery'], cta:s.whatsapp ? 'Start a WhatsApp conversation' : 'Get in touch', responsive:'Mobile-first layout with tablet and desktop adaptations' };
+export interface ProjectSession { projectId:string; accessToken:string; status:string; price:number; }
+let current:ProjectSession|null=null;
+export const getProjectSession=()=>current;
+
+async function request<T>(path:string, init?:RequestInit):Promise<T>{const r=await fetch(path,{...init,headers:{'Content-Type':'application/json',...(init?.headers||{})}});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||`Request failed (${r.status})`);return data as T;}
+
+export async function generateWebsite(state:BuilderState,onProgress:(label:string)=>void):Promise<WebsiteSpec>{
+  const started=await request<{projectId:string;accessToken:string;status:string;price:number}>('/api/generate',{method:'POST',body:JSON.stringify(state)});
+  current={...started};
+  const stages=['Analyzing requirements','Planning website','Creating design system','Writing business content','Processing images','Building pages','Optimizing responsive layout','Running quality checks','Preparing preview'];
+  let seen='';
+  for(let i=0;i<600;i++){
+    const p=await request<any>(`/api/projects/${encodeURIComponent(current.projectId)}`,{headers:{Authorization:`Bearer ${current.accessToken}`} } );
+    if(p.generationStage&&p.generationStage!==seen){seen=p.generationStage;onProgress(seen);}
+    if(p.status==='PREVIEW_READY'&&p.spec){current.status=p.status;current.price=p.price;return p.spec as WebsiteSpec;}
+    if(p.generationError)throw new Error(p.generationError);
+    if(p.status==='DRAFT'&&i>2)throw new Error('Generation failed before preview was prepared');
+    if(!seen&&i===0)onProgress(stages[0]);
+    await new Promise(r=>setTimeout(r,1000));
+  }
+  throw new Error('Generation timed out. Please retry.');
 }
 
-export async function generateWebsite(s: BuilderState, onProgress:(label:string)=>void): Promise<WebsiteSpec> {
-  const stages=['Analyzing your requirements','Planning website structure','Generating design','Adding content','Optimizing images','Running quality check','Finalizing website'];
-  for (const stage of stages) { onProgress(stage); await new Promise(r=>setTimeout(r,420)); }
-  return buildWebsiteSpec(s);
-}
-
-export function websiteHtml(spec: WebsiteSpec): string {
-  const esc=(v:string)=>v.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
-  const sections=spec.sections.map(x=>`<section><div class="container"><p class="eyebrow">${esc(spec.business)}</p><h2>${esc(x)}</h2><p>${esc(spec.content)}</p></div></section>`).join('');
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="${esc(spec.content)}"><title>${esc(spec.business)}</title><style>body{margin:0;font-family:${esc(spec.typography)},Arial,sans-serif;color:#111;background:#f8f7f4}header,section,footer{padding:72px 24px}.container{max-width:1080px;margin:auto}h1{font-size:clamp(44px,7vw,92px);line-height:.95;margin:12px 0}h2{font-size:48px}.eyebrow{letter-spacing:.16em;text-transform:uppercase;font-size:12px}a,button{display:inline-block;padding:14px 20px;border-radius:999px;text-decoration:none;background:${spec.colors.primary};color:#111}</style></head><body><header><div class="container"><p class="eyebrow">${esc(spec.personality.join(' · '))}</p><h1>${esc(spec.business)}</h1><p>${esc(spec.content)}</p><a href="#contact">${esc(spec.cta)}</a></div></header>${sections}<footer id="contact"><div class="container"><strong>${esc(spec.business)}</strong><p>Built with NexaAI.</p></div></footer></body></html>`;
-}
+export async function approveProject(){if(!current)throw new Error('No generated project');return request<{status:string}>(`/api/projects/${current.projectId}/approve`,{method:'POST',headers:{Authorization:`Bearer ${current.accessToken}`}});}
+export async function createPaymentOrder(){if(!current)throw new Error('No generated project');return request<{keyId:string;orderId:string;amount:number;currency:string;price:number}>('/api/payment/order',{method:'POST',headers:{Authorization:`Bearer ${current.accessToken}`},body:JSON.stringify({projectId:current.projectId})});}
+export async function verifyPayment(input:{orderId:string;paymentId:string;signature:string;amount:number}){if(!current)throw new Error('No generated project');const out=await request<{status:string}>('/api/payment/verify',{method:'POST',headers:{Authorization:`Bearer ${current.accessToken}`},body:JSON.stringify({...input,projectId:current.projectId})});current.status=out.status;return out;}
+export async function downloadExport(){if(!current)throw new Error('No generated project');const r=await fetch(`/api/projects/${current.projectId}/export`,{headers:{Authorization:`Bearer ${current.accessToken}`}});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Export is locked');}const blob=await r.blob();return URL.createObjectURL(blob);}
