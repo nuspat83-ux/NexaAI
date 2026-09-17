@@ -180,7 +180,7 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
     globalThis.fetch = originalFetch;
     if (originalEnv.dataDir === undefined) delete process.env.NEXAAI_DATA_DIR; else process.env.NEXAAI_DATA_DIR = originalEnv.dataDir;
     if (originalEnv.gemini === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = originalEnv.gemini;
-    if (originalEnv.razorpayKeyId === undefined) delete process.env.RAZORPAY_KEY_ID; else process.env.RAZORPAY_KEY_ID = originalEnv.razORPAY_KEY_ID;
+    if (originalEnv.razorpayKeyId === undefined) delete process.env.RAZORPAY_KEY_ID; else process.env.RAZORPAY_KEY_ID = originalEnv.razorpayKeyId;
     if (originalEnv.razorpaySecret === undefined) delete process.env.RAZORPAY_KEY_SECRET; else process.env.RAZORPAY_KEY_SECRET = originalEnv.razorpaySecret;
     await rm(dataDir, { recursive: true, force: true });
   }
