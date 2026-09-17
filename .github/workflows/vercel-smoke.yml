@@ -23,12 +23,15 @@ jobs:
           api="https://api.github.com/repos/${GITHUB_REPOSITORY}/deployments?sha=${GITHUB_SHA}&per_page=20"
           for attempt in $(seq 1 60); do
             deployments=$(curl -sS -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "X-GitHub-Api-Version: 2022-11-28" "$api")
-            for id in $(echo "$deployments" | jq -r '.[] | select(.creator.login == "vercel" or .creator.login == "vercel[bot]") | .id'); do
+            for id in $(echo "$deployments" | jq -r '.[].id'); do
               detail=$(curl -sS -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "X-GitHub-Api-Version: 2022-11-28" "https://api.github.com/repos/${GITHUB_REPOSITORY}/deployments/${id}")
               environment_url=$(echo "$detail" | jq -r '.environment_url // empty')
+              if [ -z "$environment_url" ]; then
+                continue
+              fi
               statuses=$(curl -sS -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "X-GitHub-Api-Version: 2022-11-28" "https://api.github.com/repos/${GITHUB_REPOSITORY}/deployments/${id}/statuses?per_page=20")
               state=$(echo "$statuses" | jq -r '.[0].state // empty')
-              if [ -n "$environment_url" ] && [ "$state" = "success" ]; then
+              if [ "$state" = "success" ]; then
                 echo "VERCEL_URL=$environment_url" >> "$GITHUB_ENV"
                 echo "Discovered Vercel deployment: $environment_url"
                 exit 0
