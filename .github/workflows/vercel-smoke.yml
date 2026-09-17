@@ -7,23 +7,29 @@ on:
 jobs:
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 7
     steps:
-      - name: Wait for Vercel deployment
+      - name: Wait for Vercel deployment and discover URL
         shell: bash
         run: |
           set -euo pipefail
-          url="https://nexa-ai-git-main-nuspat83-9991.vercel.app/api/health"
+          urls=(
+            "https://nexa-ai.vercel.app"
+            "https://nexa-ai-git-main-nuspat83-9991.vercel.app"
+          )
           for attempt in $(seq 1 60); do
-            status=$(curl -sS -o /tmp/health.json -w '%{http_code}' "$url" || true)
-            if [ "$status" = "200" ] && grep -q '"ok":true' /tmp/health.json; then
-              cat /tmp/health.json
-              exit 0
-            fi
-            echo "Vercel health not ready yet (attempt $attempt, status $status): $(cat /tmp/health.json 2>/dev/null || true)"
+            for base in "${urls[@]}"; do
+              status=$(curl -sS -L -o /tmp/health.json -w '%{http_code}' "$base/api/health" || true)
+              if [ "$status" = "200" ] && grep -q '"ok":true' /tmp/health.json; then
+                echo "VERCEL_URL=$base" >> "$GITHUB_ENV"
+                cat /tmp/health.json
+                exit 0
+              fi
+              echo "Not healthy: $base (attempt $attempt, status $status): $(cat /tmp/health.json 2>/dev/null || true)"
+            done
             sleep 5
           done
-          echo "Vercel deployment did not expose a healthy /api/health endpoint."
+          echo "No public NexaAI Vercel URL exposed a healthy /api/health endpoint."
           exit 1
 
       - name: Install Playwright Chromium
@@ -32,6 +38,7 @@ jobs:
       - name: Verify homepage and builder
         shell: bash
         run: |
+          set -euo pipefail
           cat > /tmp/nexaai-smoke.spec.mjs <<'EOF'
           import { test, expect } from 'playwright/test';
 
@@ -42,7 +49,7 @@ jobs:
               if (message.type() === 'error') errors.push(`console: ${message.text()}`);
             });
 
-            await page.goto('https://nexa-ai-git-main-nuspat83-9991.vercel.app/', {
+            await page.goto(process.env.VERCEL_URL, {
               waitUntil: 'networkidle',
               timeout: 30_000,
             });
