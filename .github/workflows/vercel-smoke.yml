@@ -10,30 +10,19 @@ permissions:
 jobs:
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 7
+    timeout-minutes: 5
     steps:
-      - name: Discover public NexaAI URL
-        shell: bash
+      - name: Verify Vercel homepage and API health
         run: |
           set -euo pipefail
-          urls=(
-            "https://nexa-ai-git-main-nuspat83-9991.vercel.app"
-            "https://nexa-ai.vercel.app"
-          )
-          for attempt in $(seq 1 60); do
-            for base in "${urls[@]}"; do
-              status=$(curl -sS -L -o /tmp/home.html -w '%{http_code}' "$base/" || true)
-              if [ "$status" = "200" ] && grep -q 'NexaAI\|Make your business look the part.' /tmp/home.html; then
-                echo "VERCEL_URL=$base" >> "$GITHUB_ENV"
-                echo "Discovered public NexaAI URL: $base"
-                exit 0
-              fi
-              echo "Not ready: $base (attempt $attempt, status $status)"
-            done
-            sleep 5
-          done
-          echo "No public NexaAI Vercel URL returned the expected homepage."
-          exit 1
+          export VERCEL_URL=https://nexa-ai-git-main-nuspat83-9991.vercel.app
+          code=$(curl -sS -L -o /tmp/home.html -w '%{http_code}' "$VERCEL_URL/")
+          api=$(curl -sS -L -o /tmp/health.json -w '%{http_code}' "$VERCEL_URL/api/health")
+          test "$code" = 200
+          test "$api" = 200
+          grep -q 'id="root"' /tmp/home.html
+          cat /tmp/health.json
+          echo "VERCEL_URL=$VERCEL_URL" >> "$GITHUB_ENV"
 
       - name: Install Playwright Chromium
         run: npx playwright@latest install --with-deps chromium
@@ -44,26 +33,17 @@ jobs:
           set -euo pipefail
           cat > /tmp/nexaai-smoke.spec.mjs <<'EOF'
           import { test, expect } from 'playwright/test';
-
-          test('homepage loads, builder opens, and page has no immediate runtime errors', async ({ page }) => {
+          test('NexaAI homepage and builder have no immediate runtime errors', async ({ page }) => {
             const errors = [];
-            page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
-            page.on('console', message => {
-              if (message.type() === 'error') errors.push(`console: ${message.text()}`);
-            });
-
-            await page.goto(process.env.VERCEL_URL, {
-              waitUntil: 'networkidle',
-              timeout: 30_000,
-            });
+            page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
+            page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+            await page.goto(process.env.VERCEL_URL, { waitUntil: 'networkidle', timeout: 30000 });
             await expect(page.getByText('NexaAI', { exact: true }).first()).toBeVisible();
             await expect(page.getByRole('heading', { name: 'Make your business look the part.' })).toBeVisible();
-
             await page.getByRole('button', { name: 'Start building' }).click();
             await expect(page.getByText('Category', { exact: true }).first()).toBeVisible();
             await expect(page.getByText('Business', { exact: true }).first()).toBeVisible();
-
-            expect(errors, errors.join('\n')).toEqual([]);
+            expect(errors, errors.join('\\n')).toEqual([]);
           });
           EOF
           npx playwright@latest test /tmp/nexaai-smoke.spec.mjs --reporter=line
