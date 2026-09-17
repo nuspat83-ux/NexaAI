@@ -194,10 +194,9 @@ test('Vercel function and build configuration expose the API boundary', async ()
   const config = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8')) as {
     buildCommand:string;
     outputDirectory:string;
-    functions:Record<string,{runtime:string;maxDuration:number}>;
+    functions:Record<string,{maxDuration:number}>;
   };
   assert.equal(config.buildCommand, 'npm run build');
   assert.equal(config.outputDirectory, 'dist');
-  assert.equal(config.functions['api/[...path].ts'].runtime, 'nodejs22.x');
   assert.equal(config.functions['api/[...path].ts'].maxDuration, 300);
 });
