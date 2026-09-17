@@ -1,0 +1,59 @@
+name: NexaAI Vercel Smoke
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Wait for Vercel deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://nexa-ai-git-main-nuspat83-9991.vercel.app/api/health"
+          for attempt in $(seq 1 60); do
+            status=$(curl -sS -o /tmp/health.json -w '%{http_code}' "$url" || true)
+            if [ "$status" = "200" ] && grep -q '"ok":true' /tmp/health.json; then
+              cat /tmp/health.json
+              exit 0
+            fi
+            echo "Vercel health not ready yet (attempt $attempt, status $status): $(cat /tmp/health.json 2>/dev/null || true)"
+            sleep 5
+          done
+          echo "Vercel deployment did not expose a healthy /api/health endpoint."
+          exit 1
+
+      - name: Install Playwright Chromium
+        run: npx playwright@latest install --with-deps chromium
+
+      - name: Verify homepage and builder
+        shell: bash
+        run: |
+          cat > /tmp/nexaai-smoke.spec.mjs <<'EOF'
+          import { test, expect } from 'playwright/test';
+
+          test('homepage loads, builder opens, and page has no immediate runtime errors', async ({ page }) => {
+            const errors = [];
+            page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
+            page.on('console', message => {
+              if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+            });
+
+            await page.goto('https://nexa-ai-git-main-nuspat83-9991.vercel.app/', {
+              waitUntil: 'networkidle',
+              timeout: 30_000,
+            });
+            await expect(page.getByText('NexaAI', { exact: true }).first()).toBeVisible();
+            await expect(page.getByRole('heading', { name: 'Make your business look the part.' })).toBeVisible();
+
+            await page.getByRole('button', { name: 'Start building' }).click();
+            await expect(page.getByText('Category', { exact: true }).first()).toBeVisible();
+            await expect(page.getByText('Business', { exact: true }).first()).toBeVisible();
+
+            expect(errors, errors.join('\n')).toEqual([]);
+          });
+          EOF
+          npx playwright@latest test /tmp/nexaai-smoke.spec.mjs --reporter=line
