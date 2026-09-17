@@ -10,19 +10,28 @@ permissions:
 jobs:
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 7
     steps:
       - name: Verify Vercel homepage and API health
         run: |
           set -euo pipefail
           export VERCEL_URL=https://nexa-ai-git-main-nuspat83-9991.vercel.app
-          code=$(curl -sS -L -o /tmp/home.html -w '%{http_code}' "$VERCEL_URL/")
-          api=$(curl -sS -L -o /tmp/health.json -w '%{http_code}' "$VERCEL_URL/api/health")
-          test "$code" = 200
-          test "$api" = 200
-          grep -q 'id="root"' /tmp/home.html
-          cat /tmp/health.json
-          echo "VERCEL_URL=$VERCEL_URL" >> "$GITHUB_ENV"
+          for attempt in $(seq 1 60); do
+            code=$(curl -sS -L -o /tmp/home.html -w '%{http_code}' "$VERCEL_URL/" || true)
+            api=$(curl -sS -L -o /tmp/health.json -w '%{http_code}' "$VERCEL_URL/api/health" || true)
+            if [ "$code" = 200 ] && [ "$api" = 200 ] && grep -q 'id="root"' /tmp/home.html && grep -q '"ok"[[:space:]]*:[[:space:]]*true' /tmp/health.json; then
+              echo "VERCEL_URL=$VERCEL_URL" >> "$GITHUB_ENV"
+              echo "Homepage HTTP $code; API health HTTP $api"
+              cat /tmp/health.json
+              exit 0
+            fi
+            echo "Waiting for Vercel: home=$code api=$api attempt=$attempt"
+            sleep 5
+          done
+          echo "Public Vercel deployment did not return the expected homepage/API responses."
+          echo "Homepage response:"; head -c 1000 /tmp/home.html || true
+          echo "API response:"; head -c 1000 /tmp/health.json || true
+          exit 1
 
       - name: Install Playwright Chromium
         run: npx playwright@latest install --with-deps chromium
