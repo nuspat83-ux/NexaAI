@@ -11,6 +11,12 @@ npm install
 npm run dev
 ```
 
+Run the backend separately for local API development:
+
+```bash
+npm run dev:server
+```
+
 Production build:
 
 ```bash
@@ -18,32 +24,32 @@ npm run build
 npm run preview
 ```
 
-Type check / lint:
+## Vercel deployment
 
-```bash
-npm run lint
-```
+The Vite frontend builds to `dist`. The production API is exposed through `api/[...path].ts`, which delegates all `/api/*` requests to the shared `server/index.ts` request handler. Vercel uses `waitUntil` from `@vercel/functions` for the existing asynchronous generation job so the request is not dependent on a detached post-response task.
+
+`server/index.ts` no longer starts an HTTP listener when imported by Vercel. Local Node development uses `server/local.ts` instead.
 
 ## Environment
 
-Copy `.env.example` to `.env` for deployment configuration. Never commit real secrets. AI provider keys and Razorpay secrets belong only on the server.
+Copy `.env.example` to `.env` for deployment configuration. Never commit real secrets. AI provider keys and Razorpay secrets belong only on the server. `GEMINI_API_KEY`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET` are never part of the browser bundle.
 
 ## AI architecture
 
 `Builder state -> Website Specification -> Generator -> Quality validation -> Preview`.
-`src/services/generator.ts` is intentionally provider-neutral so Gemini, OpenAI or another supported provider can be wired behind a server API later. The browser does not receive provider credentials.
+The real Gemini generation pipeline runs in `server/ai.ts` when `GEMINI_API_KEY` is configured. Missing Gemini configuration is reported as HTTP 503 rather than being mistaken for a missing route.
 
 ## Payments
 
-The preview is available before payment. Export/deployment must be protected by a backend payment state. `server/payment.ts` contains the Razorpay HMAC verification boundary and export policy. A production deployment should create orders server-side, verify webhook/signature data server-side, persist the paid state, then issue a short-lived export authorization.
+The preview is available before payment. Export/deployment remains locked until the server verifies the Razorpay payment signature and changes the authoritative project status to `UNLOCKED`. Missing Razorpay configuration is reported as HTTP 503.
+
+## Storage limitation on Vercel
+
+`server/store.ts` intentionally remains behind the existing store abstraction and uses JSON-file persistence for now. On Vercel, the default data directory is `/tmp/nexaai-data`, which is writable but ephemeral and not shared as durable production storage across function instances. This is not production-grade persistence. A real database or managed KV/database store must replace the JSON file before relying on cross-instance durability.
 
 ## Leads
 
 Existing Google Apps Script lead capture is preserved in `src/services/leads.ts`, with WhatsApp fallback URL generation. The lead payload includes ID, client, business, contact, website, requested service, budget, timeline, details, source and timestamp fields.
-
-## Project management
-
-`server/projects.ts` defines the persistence and authentication contracts for projects and status transitions. Connect these contracts to a real database and identity provider before exposing an internal operations console. No insecure frontend-only admin password is included.
 
 ## Security notes
 
@@ -51,7 +57,7 @@ Existing Google Apps Script lead capture is preserved in `src/services/leads.ts`
 - Generated text is escaped when converted to downloadable HTML.
 - User uploads are previewed as local object URLs and are not executed as scripts.
 - Payment unlock is intentionally a server-side boundary, not a frontend success flag.
-- Production should add authenticated API routes, database persistence, rate limiting, CSRF/origin controls where applicable, content moderation and signed export URLs.
+- Production should still add authenticated API routes, durable database persistence, rate limiting, CSRF/origin controls where applicable, content moderation and signed export URLs.
 
 ## Current customer flow
 

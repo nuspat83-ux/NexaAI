@@ -3,7 +3,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { BuilderState, ProjectStatus, WebsiteSpec } from './types.js';
 export interface ProjectRecord { id:string; accessTokenHash:string; state:BuilderState; spec?:WebsiteSpec; status:ProjectStatus; price:number; createdAt:string; updatedAt:string; generationStage?:string; generationError?:string; razorpayOrderId?:string; razorpayPaymentId?:string; }
-const filePath=path.resolve(process.env.NEXAAI_DATA_DIR||'./data','projects.json'); let writeQueue:Promise<void>=Promise.resolve();
+const dataDir=process.env.NEXAAI_DATA_DIR||(process.env.VERCEL?'/tmp/nexaai-data':'./data');
+const filePath=path.resolve(dataDir,'projects.json'); let writeQueue:Promise<void>=Promise.resolve();
 function tokenHash(token:string){return crypto.createHash('sha256').update(token).digest('hex');}
 async function readAll():Promise<ProjectRecord[]>{try{return JSON.parse(await fs.readFile(filePath,'utf8')) as ProjectRecord[]}catch(error:any){if(error?.code==='ENOENT')return [];throw error;}}
 async function writeAll(items:ProjectRecord[]){await fs.mkdir(path.dirname(filePath),{recursive:true});const tmp=`${filePath}.tmp`;await fs.writeFile(tmp,JSON.stringify(items,null,2),'utf8');await fs.rename(tmp,filePath);}
