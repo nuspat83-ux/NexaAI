@@ -6,6 +6,34 @@ import { join } from 'node:path';
 import { once } from 'node:events';
 import { test } from 'node:test';
 
+const validState = {
+  category: 'Bakery',
+  customBusiness: '',
+  businessName: 'Test Bakery',
+  tagline: 'Fresh every day.',
+  description: 'Neighbourhood bakery with fresh bakes.',
+  location: 'Mumbai',
+  phone: '+91 9000000000',
+  whatsapp: '+91 9000000000',
+  email: 'hello@test-bakery.example',
+  address: 'Mumbai, Maharashtra',
+  hours: 'Daily',
+  socials: '@testbakery',
+  existingWebsite: '',
+  styles: ['Premium', 'Modern'],
+  primary: '#C9A46C',
+  secondary: '#111318',
+  font: 'Inter',
+  theme: 'ai' as const,
+  sections: ['Hero', 'About', 'Services', 'Contact'],
+  pages: ['Home', 'About', 'Contact', 'Gallery'],
+  features: ['WhatsApp button', 'Contact form', 'SEO setup', 'Analytics-ready'],
+  assets: [],
+  brief: 'Keep the site warm, premium and specific to the bakery.',
+  audience: 'Local bakery customers',
+  plan: 'Starter',
+};
+
 async function httpRequest(server: Server, path: string, init: RequestInit = {}) {
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('Test server is not listening');
@@ -28,7 +56,7 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
 
   try {
     const { requestHandler } = await import('../server/index.js');
-    const { createProject, updateProject } = await import('../server/store.js');
+    const { updateProject } = await import('../server/store.js');
     const server = createServer((req, res) => {
       void requestHandler(req, res, task => {
         void task;
@@ -52,7 +80,7 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       const missingGemini = await httpRequest(server, '/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ businessName: 'Test Bakery', pages: ['Home'], features: [] }),
+        body: JSON.stringify(validState),
       });
       assert.equal(missingGemini.status, 503);
       assert.match(await missingGemini.text(), /GEMINI_API_KEY is not configured/);
@@ -67,7 +95,7 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
         nav: ['Home'],
         hero: { eyebrow: 'Bakery', headline: 'Fresh every day.', body: 'Bakes made for your neighbourhood.', cta: 'Visit us' },
         sections: [],
-        contact: { phone: '', whatsapp: '', email: 'hello@test-bakery.example', address: 'Mumbai', hours: 'Daily' },
+        contact: { phone: '+91 9000000000', whatsapp: '+91 9000000000', email: 'hello@test-bakery.example', address: 'Mumbai', hours: 'Daily' },
         footer: 'Test Bakery',
       };
       globalThis.fetch = async (input, init) => {
@@ -84,7 +112,7 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       const generate = await httpRequest(server, '/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ businessName: 'Test Bakery', pages: ['Home', 'About', 'Contact', 'Gallery'], features: [] }),
+        body: JSON.stringify(validState),
       });
       assert.equal(generate.status, 202);
       const started = await generate.json() as { projectId:string; accessToken:string; price:number; status:string };
@@ -122,13 +150,21 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       assert.equal(approve.status, 200);
       assert.deepEqual(await approve.json(), { status: 'PAYMENT_PENDING' });
 
-      const paymentConfigMissing = await httpRequest(server, '/api/payment/order', {
+      const paymentOrderMissing = await httpRequest(server, '/api/payment/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${started.accessToken}` },
         body: JSON.stringify({ projectId: started.projectId }),
       });
-      assert.equal(paymentConfigMissing.status, 503);
-      assert.match(await paymentConfigMissing.text(), /Razorpay credentials are not configured/);
+      assert.equal(paymentOrderMissing.status, 503);
+      assert.match(await paymentOrderMissing.text(), /Razorpay credentials are not configured/);
+
+      const paymentVerifyMissing = await httpRequest(server, '/api/payment/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${started.accessToken}` },
+        body: JSON.stringify({ projectId: started.projectId, orderId: 'order_x', paymentId: 'pay_x', signature: 'sig_x', amount: 4999 }),
+      });
+      assert.equal(paymentVerifyMissing.status, 503);
+      assert.match(await paymentVerifyMissing.text(), /Razorpay credentials are not configured/);
 
       await updateProject(started.projectId, started.accessToken, { status: 'UNLOCKED' });
       const unlockedExport = await httpRequest(server, `/api/projects/${started.projectId}/export`, {
@@ -137,15 +173,6 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       assert.equal(unlockedExport.status, 200);
       assert.equal(unlockedExport.headers.get('content-type'), 'text/html; charset=utf-8');
       assert.match(await unlockedExport.text(), /Test Bakery/);
-
-      const direct = await createProject({ businessName:'Direct Project', category:'Other', plan:'Starter', pages:['Home'], features:[], styles:[], assets:[], sections:[], customBusiness:'', tagline:'', description:'', location:'', phone:'', whatsapp:'', email:'', address:'', hours:'', socials:'', existingWebsite:'', brief:'', audience:'', primary:'#000000', secondary:'#111111', font:'Inter', theme:'ai' }, 4999);
-      const verifyConfigMissing = await httpRequest(server, '/api/payment/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${direct.accessToken}` },
-        body: JSON.stringify({ projectId: direct.project.id, orderId: 'order_x', paymentId: 'pay_x', signature: 'sig_x', amount: 4999 }),
-      });
-      assert.equal(verifyConfigMissing.status, 503);
-      assert.match(await verifyConfigMissing.text(), /Razorpay credentials are not configured/);
     } finally {
       await new Promise<void>(resolve => server.close(() => resolve()));
     }
