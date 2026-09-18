@@ -46,10 +46,10 @@ export async function planDirectBrief(brief:string, clarification=''):Promise<Di
     const p:any=await r.json(),text=p?.candidates?.[0]?.content?.parts?.map((z:any)=>z.text||'').join('');
     if(!text)throw new RetryableAIError('Gemini returned an empty response');
     const x:any=JSON.parse(extractJson(text));
-    if(!DIRECT_CATEGORIES.includes(x.category)||typeof x.businessName!=='string'||!Array.isArray(x.pages)||!Array.isArray(x.features)||!Array.isArray(x.sections)||!Array.isArray(x.styles)||!Array.isArray(x.clarifyingQuestions)||typeof x.businessDetails!=='object'||!['products','menu','services','none'].includes(x.catalogMode)||!['none','whatsapp','cart','checkout'].includes(x.orderFlow))throw new Error('AI direct plan failed NexaAI schema validation');
+    if(!DIRECT_CATEGORIES.includes(x.category)||typeof x.businessName!=='string'||!Array.isArray(x.pages)||!Array.isArray(x.features)||!Array.isArray(x.sections)||!Array.isArray(x.styles)||!Array.isArray(x.clarifyingQuestions)||typeof x.businessDetails!=='object'||!['products','menu','services','none'].includes(x.catalogMode)||(x.orderFlow!==undefined&&!['none','whatsapp','cart','checkout'].includes(x.orderFlow)))throw new Error('AI direct plan failed NexaAI schema validation');
     const products=Array.isArray(x.products)?x.products.map((p:any)=>normalizeProduct(p)).filter(Boolean):[];
     const services=Array.isArray(x.services)?x.services.map((v:any)=>normalizeService(v)).filter(Boolean):[];
-    return {...x,brief:brief.trim(),businessDetails:x.businessDetails||{},products,services,catalogMode:x.catalogMode,orderFlow:x.orderFlow} as DirectPlan;
+    return {...x,brief:brief.trim(),businessDetails:x.businessDetails||{},products,services,catalogMode:x.catalogMode,orderFlow:x.orderFlow||'none'} as DirectPlan;
   }finally{clearTimeout(timer);}
 }
 
