@@ -10,8 +10,8 @@ const validState = {
   creationMode: 'guided' as const,
   directBrief: '',
   businessDetails: {},
-  catalog: { mode: 'none', products: [], services: [], payment: 'unknown', delivery: {} },
-  category: 'Bakery',
+  catalog: { mode: 'menu', products: [{ id: 'm1', name: 'Croissant', price: 180, category: 'Bakery', images: [] }], services: [], payment: 'whatsapp', delivery: { areas: 'Mumbai' } },
+  category: 'Cafe',
   customBusiness: '',
   businessName: 'Test Bakery',
   tagline: 'Fresh every day.',
@@ -219,7 +219,8 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       }
       assert.equal(ready.status, 'PREVIEW_READY');
       assert.equal(ready.spec.business, 'Test Bakery');
-      assert.deepEqual(ready.spec.products?.[0]?.name, 'Black Dress');
+      assert.deepEqual(ready.spec.products?.[0]?.name, 'Croissant');
+      assert.equal(ready.spec.products?.[0]?.price, 180);
       assert.equal(ready.generationStage, 'Preview ready');
 
       const generatedPreview = ready.spec as Record<string, unknown>;
