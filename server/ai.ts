@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type {BuilderState,WebsiteSpec} from './types.js';
 import type {Product,ServiceItem} from '../src/catalog.js';
 const MAX_RETRIES=2,TIMEOUT_MS=90000;
@@ -53,7 +54,7 @@ export async function planDirectBrief(brief:string, clarification=''):Promise<Di
 
 function normalizeProduct(p:any):Product|undefined{
   if(!p||typeof p!=='object'||typeof p.name!=='string'||!p.name.trim())return undefined;
-  const out:Product={id:typeof p.id==='string'&&p.id?p.id:crypto.randomUUID(),name:p.name.trim()};
+  const out:Product={id:typeof p.id==='string'&&p.id?p.id:randomUUID(),name:p.name.trim()};
   for(const key of ['description','currency','category','size','color','stock','sku'] as const)if(typeof p[key]==='string'&&p[key].trim())out[key]=p[key].trim();
   for(const key of ['price','salePrice'] as const)if(typeof p[key]==='number'&&Number.isFinite(p[key])&&p[key]>=0)out[key]=p[key];
   if(Array.isArray(p.images))out.images=p.images.filter((v:any)=>typeof v==='string').slice(0,8);
