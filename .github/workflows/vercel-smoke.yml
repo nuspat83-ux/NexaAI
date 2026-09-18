@@ -60,15 +60,10 @@ jobs:
           unknown=$(curl -sS -o /tmp/unknown.json -w '%{http_code}' "$VERCEL_URL/api/no-such-route")
           test "$unknown" = 404
           grep -q '"error":"Not found"' /tmp/unknown.json
-          gemini=$(curl -sS -o /tmp/gemini.json -w '%{http_code}' -X POST "$VERCEL_URL/api/generate" -H 'Content-Type: application/json' --data '{"businessName":"Smoke Test"}')
-          if [ "$gemini" = 503 ]; then
-            grep -q 'GEMINI_API_KEY is not configured' /tmp/gemini.json
-          else
-            echo "Expected missing-Gemini deployment to return 503, got $gemini"
-            cat /tmp/gemini.json
-            exit 1
-          fi
-          echo "API boundary checks passed: invalid route=404, missing Gemini=503"
+          invalid=$(curl -sS -o /tmp/invalid.json -w '%{http_code}' -X POST "$VERCEL_URL/api/generate" -H 'Content-Type: application/json' --data '{"businessName":"Smoke Test"}')
+          test "$invalid" = 400
+          grep -q '"error":"Invalid builder configuration"' /tmp/invalid.json
+          echo "API boundary checks passed: invalid route=404, invalid builder configuration=400"
       
       - name: Install Playwright Chromium
         run: npx playwright@latest install --with-deps chromium
@@ -109,4 +104,4 @@ jobs:
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
-            -d "$(jq -n --arg state "$state" '{state:$state,context:"NexaAI smoke",description:"Build, tests, Vercel API boundary and browser smoke"})'
+            -d "$(jq -n --arg state "$state" '{state:$state,context:"NexaAI smoke",description:"Build, tests, Vercel API boundary and browser smoke"}')"
