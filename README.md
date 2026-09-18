@@ -73,3 +73,4 @@ NexaAI now supports two entry modes without replacing the existing generation/pa
 - NexaAI Direct accepts a natural-language website brief, sends it to the existing server-side Gemini boundary for structured planning, asks only for essential clarification when needed, then maps the plan back into the same BuilderState and existing /api/generate pipeline.
 
 Business-aware configuration lives in src/businessProfiles.ts, so additional business types and Day 2/3 modules can be added without scattering category-specific logic through the UI. The Direct planner is exposed at POST /api/direct-plan; it does not unlock, bypass, or replace the existing payment/export security boundary.
+
