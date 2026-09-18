@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createProject, getProject, updateProject } from './store.js';
 import { calculatePrice, itemizePrice } from './pricing.js';
-import { generateWebsite } from './ai.js';
+import { generateWebsite, planDirectBrief } from './ai.js';
 import { websiteHtml } from './render.js';
 import { assertPaymentConfig, createRazorpayOrder, verifyCheckoutSignature } from './payment.js';
 
@@ -135,6 +135,18 @@ export async function requestHandler(
         ),
         time: new Date().toISOString(),
       });
+    }
+
+    if (url.pathname === '/api/direct-plan' && req.method === 'POST') {
+      if (!process.env.GEMINI_API_KEY) {
+        return json(res, 503, { error: 'GEMINI_API_KEY is not configured on the server' });
+      }
+      const input = await jsonBody<{ brief?: string; clarification?: string }>(req);
+      if (typeof input.brief !== 'string' || input.brief.trim().length < 12 || input.brief.length > 10000) {
+        return json(res, 400, { error: 'A direct brief of at least 12 characters is required' });
+      }
+      const plan = await planDirectBrief(input.brief, typeof input.clarification === 'string' ? input.clarification : '');
+      return json(res, 200, plan);
     }
 
     if (url.pathname === '/api/generate' && req.method === 'POST') {
