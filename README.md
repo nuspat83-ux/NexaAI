@@ -64,3 +64,12 @@ Existing Google Apps Script lead capture is preserved in `src/services/leads.ts`
 Landing -> 10-step builder -> staged generation -> responsive preview -> pricing -> payment-ready lock -> export boundary.
 
 Pricing starts at **₹4,999**, with transparent extra-page and feature calculations in the builder. API request bodies are intentionally capped below Vercel's 4.5 MB Function payload limit; browser image uploads are compressed before generation so the builder can send references without exceeding that platform boundary.
+
+## Day 1 creation architecture
+
+NexaAI now supports two entry modes without replacing the existing generation/payment architecture:
+
+- Guided Build keeps the 10-step customer-controlled builder and adapts recommended pages, sections, features, and business questions from a centralized business profile schema.
+- NexaAI Direct accepts a natural-language website brief, sends it to the existing server-side Gemini boundary for structured planning, asks only for essential clarification when needed, then maps the plan back into the same BuilderState and existing /api/generate pipeline.
+
+Business-aware configuration lives in src/businessProfiles.ts, so additional business types and Day 2/3 modules can be added without scattering category-specific logic through the UI. The Direct planner is exposed at POST /api/direct-plan; it does not unlock, bypass, or replace the existing payment/export security boundary.
