@@ -101,8 +101,10 @@ export function catalogFieldsForCategory(category: string, businessHint = ''): C
     return [...commonFields, { key: 'variants', label: 'Variants', placeholder: 'e.g. 128GB; 256GB', optional: true }, { key: 'stock', label: 'Stock', placeholder: 'In stock / unknown', optional: true }];
   }
   if (category === 'Cafe' || category === 'Restaurant') {
-    return [...commonFields, { key: 'description', label: 'Description', placeholder: 'What is this item?', optional: true, multiline: true }, { key: 'tags', label: 'Tags', placeholder: 'Vegetarian, spicy, bestseller', optional: true }];
+    return [...commonFields, { key: 'description', label: 'Description', placeholder: 'What is this item?', optional: true, multiline: true }, { key: 'tags', label: 'Tags', placeholder: 'Vegetarian, spicy, bestseller', optional: true }, { key: 'vegetarian', label: 'Dietary info', placeholder: 'Vegetarian / non-vegetarian', optional: true }];
   }
+  if (category === 'E-commerce' && /toy|kids/i.test(businessHint)) return [...commonFields, { key: 'ageGroup', label: 'Age group', placeholder: '3–5 years', optional: true }, { key: 'stock', label: 'Stock', placeholder: 'In stock / unknown', optional: true }];
+  if (category === 'E-commerce' && /electronic|gadget|computer|phone/i.test(businessHint)) return [...commonFields, { key: 'specifications', label: 'Specifications', placeholder: 'Key technical specs', optional: true, multiline: true }, { key: 'stock', label: 'Stock', placeholder: 'In stock / unknown', optional: true }];
   return [
     { key: 'name', label: 'Service', placeholder: 'Service name' },
     { key: 'description', label: 'Details', placeholder: 'What is included?', optional: true, multiline: true },
