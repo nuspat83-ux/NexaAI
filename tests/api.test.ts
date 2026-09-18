@@ -229,9 +229,11 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       const previewHtml = (await import('../server/render.js')).websiteHtml(generatedPreview as any);
       assert.match(previewHtml, /<main id="main">/);
 
-      const catalogPreviewHtml = (await import('../server/render.js')).websiteHtml({business:'Catalog Site',tagline:'Shop',catalogMode:'products',products:[{id:'p1',name:'Black Dress',price:1299,images:['dress.jpg'],size:'S, M, L'}],services:[],sections:[],content:'Catalog',imageRequirements:[],cta:'Order',responsive:'Responsive',colors:{primary:'#111',secondary:'#222'},assets:[{name:'dress.jpg',type:'image/jpeg',url:'data:image/jpeg;base64,abc'}] } as any);
+      const catalogPreviewHtml = (await import('../server/render.js')).websiteHtml({business:'Catalog Site',tagline:'Shop',catalogMode:'products',orderFlow:'whatsapp',payment:'whatsapp',delivery:{areas:'Mumbai'},products:[{id:'p1',name:'Black Dress',price:1299,images:['dress.jpg'],size:'S, M, L'}],services:[],sections:[],content:'Catalog',imageRequirements:[],cta:'Order',responsive:'Responsive',colors:{primary:'#111',secondary:'#222'},assets:[{name:'dress.jpg',type:'image/jpeg',url:'data:image/jpeg;base64,abc'}] } as any);
       assert.match(catalogPreviewHtml, /Black Dress/);
       assert.match(catalogPreviewHtml, /1,299/);
+      assert.match(catalogPreviewHtml, /Order on WhatsApp/);
+      assert.match(catalogPreviewHtml, /Mumbai/);
 
       const minimalPreviewHtml = (await import('../server/render.js')).websiteHtml({
         business: 'Minimal Site',
