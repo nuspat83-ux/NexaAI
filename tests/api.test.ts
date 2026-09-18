@@ -96,6 +96,8 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       assert.equal(missingDirectGemini.status, 503);
       assert.match(await missingDirectGemini.text(), /GEMINI_API_KEY is not configured/);
 
+      process.env.GEMINI_API_KEY = 'test-gemini-key';
+
       const invalidDirect = await httpRequest(server, '/api/direct-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -104,7 +106,6 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       assert.equal(invalidDirect.status, 400);
       assert.match(await invalidDirect.text(), /at least 12 characters/);
 
-      process.env.GEMINI_API_KEY = 'test-gemini-key';
       const malformed = await httpRequest(server, '/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
