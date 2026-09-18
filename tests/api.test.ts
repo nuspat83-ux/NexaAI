@@ -177,6 +177,7 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       assert.equal(directBody.products[0].price, 1299);
       assert.equal(directBody.products[0].size, 'S, M, L');
       assert.equal(directBody.products[0].color, 'Black');
+      assert.equal(directBody.products[0].salePrice, undefined);
       assert.deepEqual(directBody.clarifyingQuestions, ['Do you want customers to pay online, order on WhatsApp, or use both?']);
 
       const clarificationPlan = await httpRequest(server, '/api/direct-plan', {
