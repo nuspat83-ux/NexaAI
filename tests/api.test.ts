@@ -85,6 +85,20 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       assert.equal(missingGemini.status, 503);
       assert.match(await missingGemini.text(), /GEMINI_API_KEY is not configured/);
 
+      const malformed = await httpRequest(server, '/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{not-json',
+      });
+      assert.equal(malformed.status, 400);
+
+      const oversized = await httpRequest(server, '/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...validState, brief: 'x'.repeat(4_200_000) }),
+      });
+      assert.equal(oversized.status, 413);
+
       process.env.GEMINI_API_KEY = 'test-gemini-key';
       const websiteSpec = {
         business: 'Test Bakery',
@@ -166,7 +180,21 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       assert.equal(paymentVerifyMissing.status, 503);
       assert.match(await paymentVerifyMissing.text(), /Razorpay credentials are not configured/);
 
-      await updateProject(started.projectId, started.accessToken, { status: 'UNLOCKED' });
+      process.env.RAZORPAY_KEY_ID = 'rzp_test';
+      process.env.RAZORPAY_KEY_SECRET = 'razorpay-test-secret';
+      const crypto = await import('node:crypto');
+      const paymentId = 'pay_test_456';
+      const orderId = 'order_test_123';
+      await updateProject(started.projectId, started.accessToken, { status: 'PAYMENT_PENDING', razorpayOrderId: orderId });
+      const signature = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET).update(`${orderId}|${paymentId}`).digest('hex');
+      const verify = await httpRequest(server, '/api/payment/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${started.accessToken}` },
+        body: JSON.stringify({ projectId: started.projectId, orderId, paymentId, signature, amount: 4999 }),
+      });
+      assert.equal(verify.status, 200);
+      assert.deepEqual(await verify.json(), { status: 'UNLOCKED' });
+
       const unlockedExport = await httpRequest(server, `/api/projects/${started.projectId}/export`, {
         headers: { Authorization: `Bearer ${started.accessToken}` },
       });
