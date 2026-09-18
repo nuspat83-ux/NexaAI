@@ -7,6 +7,9 @@ import { once } from 'node:events';
 import { test } from 'node:test';
 
 const validState = {
+  creationMode: 'guided' as const,
+  directBrief: '',
+  businessDetails: {},
   category: 'Bakery',
   customBusiness: '',
   businessName: 'Test Bakery',
@@ -85,6 +88,22 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       assert.equal(missingGemini.status, 503);
       assert.match(await missingGemini.text(), /GEMINI_API_KEY is not configured/);
 
+      const missingDirectGemini = await httpRequest(server, '/api/direct-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brief: 'Build a premium clothing website in Mumbai.' }),
+      });
+      assert.equal(missingDirectGemini.status, 503);
+      assert.match(await missingDirectGemini.text(), /GEMINI_API_KEY is not configured/);
+
+      const invalidDirect = await httpRequest(server, '/api/direct-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brief: 'too short' }),
+      });
+      assert.equal(invalidDirect.status, 400);
+      assert.match(await invalidDirect.text(), /at least 12 characters/);
+
       process.env.GEMINI_API_KEY = 'test-gemini-key';
       const malformed = await httpRequest(server, '/api/generate', {
         method: 'POST',
@@ -128,7 +147,9 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
           const requestBody = typeof init?.body === 'string' ? JSON.parse(init.body) : {};
           const prompt = requestBody?.contents?.[0]?.parts?.[0]?.text || '';
           const response = prompt.includes("website planning assistant")
-            ? { category:'E-commerce', businessName:'Mumbai Threads', description:'A clothing shop selling curated apparel.', location:'Mumbai', phone:'', whatsapp:'+91 9000000000', email:'', address:'', hours:'', socials:'', brief:'My clothing shop is in Mumbai and I want a premium product website.', audience:'Fashion shoppers', styles:['Premium','Modern'], pages:['Home','Products','About','Contact'], sections:['Hero','Products','Testimonials','Contact'], features:['Product catalog','WhatsApp button','SEO setup'], businessDetails:{products:'40 products',productCategories:'Clothing'}, clarifyingQuestions:[] }
+            ? (prompt.includes('Additional clarification:') && !prompt.endsWith('none')
+              ? { category:'E-commerce', businessName:'Mumbai Threads', description:'A clothing shop selling curated apparel.', location:'Mumbai', phone:'', whatsapp:'+91 9000000000', email:'', address:'', hours:'', socials:'', brief:'My clothing shop is in Mumbai and I want a premium product website.', audience:'Fashion shoppers', styles:['Premium','Modern'], pages:['Home','Products','About','Contact'], sections:['Hero','Products','Testimonials','Contact'], features:['Product catalog','WhatsApp button','SEO setup'], businessDetails:{products:'40 products',productCategories:'Clothing',payment:'Both online payment and WhatsApp ordering'}, clarifyingQuestions:[] }
+              : { category:'E-commerce', businessName:'Mumbai Threads', description:'A clothing shop selling curated apparel.', location:'Mumbai', phone:'', whatsapp:'+91 9000000000', email:'', address:'', hours:'', socials:'', brief:'My clothing shop is in Mumbai and I want a premium product website.', audience:'Fashion shoppers', styles:['Premium','Modern'], pages:['Home','Products','About','Contact'], sections:['Hero','Products','Testimonials','Contact'], features:['Product catalog','WhatsApp button','SEO setup'], businessDetails:{products:'40 products',productCategories:'Clothing'}, clarifyingQuestions:['Do you want customers to pay online, order on WhatsApp, or use both?'] })
             : websiteSpec;
           return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(response) }] } }] }), {
             status: 200,
@@ -148,7 +169,21 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       assert.equal(directBody.category, 'E-commerce');
       assert.equal(directBody.businessName, 'Mumbai Threads');
       assert.ok(Array.isArray(directBody.features));
-      assert.ok(Array.isArray(directBody.clarifyingQuestions));
+      assert.equal(directBody.businessDetails.products, '40 products');
+      assert.deepEqual(directBody.clarifyingQuestions, ['Do you want customers to pay online, order on WhatsApp, or use both?']);
+
+      const clarificationPlan = await httpRequest(server, '/api/direct-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brief: 'My clothing shop is in Mumbai and I want a premium product website.',
+          clarification: 'Both online payment and WhatsApp ordering.',
+        }),
+      });
+      assert.equal(clarificationPlan.status, 200);
+      const clarificationBody = await clarificationPlan.json() as Record<string, any>;
+      assert.deepEqual(clarificationBody.clarifyingQuestions, []);
+      assert.equal(clarificationBody.businessDetails.payment, 'Both online payment and WhatsApp ordering');
 
       const generate = await httpRequest(server, '/api/generate', {
         method: 'POST',
@@ -182,6 +217,18 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       const generatedPreview = ready.spec as Record<string, unknown>;
       const previewHtml = (await import('../server/render.js')).websiteHtml(generatedPreview as any);
       assert.match(previewHtml, /<main id="main">/);
+
+      const minimalPreviewHtml = (await import('../server/render.js')).websiteHtml({
+        business: 'Minimal Site',
+        sections: [],
+        content: 'Simple content',
+        imageRequirements: [],
+        cta: 'Contact',
+        responsive: 'Responsive',
+        colors: { primary: '#111', secondary: '#222' },
+      } as any);
+      assert.match(minimalPreviewHtml, /<main id="main">/);
+      assert.match(minimalPreviewHtml, /Minimal Site/);
 
       const lockedExport = await httpRequest(server, `/api/projects/${started.projectId}/export`, {
         headers: { Authorization: `Bearer ${started.accessToken}` },
