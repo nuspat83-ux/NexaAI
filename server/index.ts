@@ -58,9 +58,10 @@ function isValidGenerateState(value: unknown): value is Parameters<typeof genera
   const s = value as Record<string, unknown>;
   const arrays = ['styles', 'sections', 'pages', 'features', 'assets'];
   if (!arrays.every(key => Array.isArray(s[key]))) return false;
+  const assets = s.assets as unknown[];
   if (typeof s.businessName !== 'string' || typeof s.customBusiness !== 'string') return false;
   if (!s.businessName.trim() && !s.customBusiness.trim()) return false;
-  if (!s.assets.every((asset: unknown) => {
+  if (!assets.every((asset: unknown) => {
     if (!asset || typeof asset !== 'object') return false;
     const a = asset as Record<string, unknown>;
     return typeof a.name === 'string' && typeof a.type === 'string' && typeof a.url === 'string'
