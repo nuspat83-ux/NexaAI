@@ -150,7 +150,7 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
           const prompt = requestBody?.contents?.[0]?.parts?.[0]?.text || '';
           const response = prompt.includes("website planning assistant")
             ? (prompt.includes('Additional clarification:') && !prompt.endsWith('none')
-              ? { category:'E-commerce', businessName:'Mumbai Threads', description:'A clothing shop selling curated apparel.', location:'Mumbai', phone:'', whatsapp:'+91 9000000000', email:'', address:'', hours:'', socials:'', brief:'My clothing shop is in Mumbai and I want a premium product website.', audience:'Fashion shoppers', styles:['Premium','Modern'], pages:['Home','Products','About','Contact'], sections:['Hero','Products','Testimonials','Contact'], features:['Product catalog','WhatsApp button','SEO setup'], catalogMode:'products', orderFlow:'both', products:[{id:'p1',name:'Black Dress',price:1299,size:'S, M, L',color:'Black',images:['dress.jpg']}], services:[], businessDetails:{products:'40 products',productCategories:'Clothing',payment:'Both online payment and WhatsApp ordering'}, clarifyingQuestions:[] }
+              ? { category:'E-commerce', businessName:'Mumbai Threads', description:'A clothing shop selling curated apparel.', location:'Mumbai', phone:'', whatsapp:'+91 9000000000', email:'', address:'', hours:'', socials:'', brief:'My clothing shop is in Mumbai and I want a premium product website.', audience:'Fashion shoppers', styles:['Premium','Modern'], pages:['Home','Products','About','Contact'], sections:['Hero','Products','Testimonials','Contact'], features:['Product catalog','WhatsApp button','SEO setup'], catalogMode:'products', orderFlow:'whatsapp', products:[{id:'p1',name:'Black Dress',price:1299,size:'S, M, L',color:'Black',images:['dress.jpg']}], services:[], businessDetails:{products:'40 products',productCategories:'Clothing',payment:'Both online payment and WhatsApp ordering'}, clarifyingQuestions:[] }
               : { category:'E-commerce', businessName:'Mumbai Threads', description:'A clothing shop selling curated apparel.', location:'Mumbai', phone:'', whatsapp:'+91 9000000000', email:'', address:'', hours:'', socials:'', brief:'My clothing shop is in Mumbai and I want a premium product website.', audience:'Fashion shoppers', styles:['Premium','Modern'], pages:['Home','Products','About','Contact'], sections:['Hero','Products','Testimonials','Contact'], features:['Product catalog','WhatsApp button','SEO setup'], catalogMode:'products', orderFlow:'both', products:[{id:'p1',name:'Black Dress',price:1299,size:'S, M, L',color:'Black',images:['dress.jpg']}], services:[], businessDetails:{products:'40 products',productCategories:'Clothing'}, clarifyingQuestions:['Do you want customers to pay online, order on WhatsApp, or use both?'] })
             : websiteSpec;
           return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(response) }] } }] }), {
@@ -173,7 +173,7 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       assert.ok(Array.isArray(directBody.features));
       assert.equal(directBody.businessDetails.products, '40 products');
       assert.equal(directBody.catalogMode, 'products');
-      assert.equal(directBody.orderFlow, 'both');
+      assert.equal(directBody.orderFlow, 'whatsapp');
       assert.equal(directBody.products[0].price, 1299);
       assert.equal(directBody.products[0].size, 'S, M, L');
       assert.equal(directBody.products[0].color, 'Black');
