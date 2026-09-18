@@ -33,7 +33,7 @@ export async function generateWebsite(state:BuilderState,onProgress:(label:strin
   for(let i=0;i<600;i++){
     const p=await request<any>(`/api/projects/${encodeURIComponent(session.projectId)}`,{headers:{Authorization:`Bearer ${session.accessToken}`} } );
     if(p.generationStage&&p.generationStage!==seen){seen=p.generationStage;onProgress(seen);}
-    if(p.status==='PREVIEW_READY'&&p.spec){setSession({...current!,status:p.status,price:p.price});return p.spec as WebsiteSpec;}
+    if(p.status==='PREVIEW_READY'&&p.spec){setSession({...session,status:p.status,price:p.price});return p.spec as WebsiteSpec;}
     if(p.generationError)throw new Error(p.generationError);
     if(p.status==='DRAFT'&&i>2)throw new Error('Generation failed before preview was prepared');
     if(!seen&&i===0)onProgress(stages[0]);
