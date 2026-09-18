@@ -53,6 +53,22 @@ async function jsonBody<T>(req: IncomingMessage): Promise<T> {
   }
 }
 
+function isValidGenerateState(value: unknown): value is Parameters<typeof generateWebsite>[0] {
+  if (!value || typeof value !== 'object') return false;
+  const s = value as Record<string, unknown>;
+  const arrays = ['styles', 'sections', 'pages', 'features', 'assets'];
+  if (!arrays.every(key => Array.isArray(s[key]))) return false;
+  if (typeof s.businessName !== 'string' || typeof s.customBusiness !== 'string') return false;
+  if (!s.businessName.trim() && !s.customBusiness.trim()) return false;
+  if (!s.assets.every((asset: unknown) => {
+    if (!asset || typeof asset !== 'object') return false;
+    const a = asset as Record<string, unknown>;
+    return typeof a.name === 'string' && typeof a.type === 'string' && typeof a.url === 'string'
+      && (a.data === undefined || typeof a.data === 'string');
+  })) return false;
+  return true;
+}
+
 function authToken(req: IncomingMessage) {
   const value = req.headers.authorization || '';
   return value.startsWith('Bearer ') ? value.slice(7) : '';
@@ -126,8 +142,8 @@ export async function requestHandler(
       }
 
       const state = await jsonBody<Parameters<typeof generateWebsite>[0]>(req);
-      if (!state || typeof state !== 'object' || (!state.businessName && !state.customBusiness)) {
-        return json(res, 400, { error: 'Business name or business description is required' });
+      if (!isValidGenerateState(state)) {
+        return json(res, 400, { error: 'Invalid builder configuration' });
       }
 
       const price = calculatePrice(state);
@@ -266,7 +282,7 @@ export async function requestHandler(
     const requested =
       path.normalize(url.pathname) === '/' ? '/index.html' : path.normalize(url.pathname);
     const target = path.resolve(dist, `.${requested}`);
-    if (!target.startsWith(dist)) return json(res, 403, { error: 'Forbidden' });
+    if (target !== dist && !target.startsWith(`${dist}${path.sep}`)) return json(res, 403, { error: 'Forbidden' });
 
     const data = await fs.readFile(target);
     const ext = path.extname(target);
