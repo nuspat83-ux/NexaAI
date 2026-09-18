@@ -176,6 +176,7 @@ export async function requestHandler(
     if (url.pathname === '/api/payment/order' && req.method === 'POST') {
       const token = authToken(req);
       const { projectId } = await jsonBody<{ projectId?: string }>(req);
+      if (!projectId) return json(res, 400, { error: 'projectId is required' });
       const p = await getProject(projectId, token);
       if (!p) return json(res, 401, { error: 'Unauthorized' });
       if (!['PREVIEW_READY', 'PAYMENT_PENDING'].includes(p.status)) {
@@ -206,6 +207,9 @@ export async function requestHandler(
     if (url.pathname === '/api/payment/verify' && req.method === 'POST') {
       const token = authToken(req);
       const input = await jsonBody<{ projectId?: string; orderId?: string; paymentId?: string; signature?: string; amount?: number }>(req);
+      if (!input.projectId || !input.orderId || !input.paymentId || !input.signature || typeof input.amount !== 'number') {
+        return json(res, 400, { error: 'projectId, orderId, paymentId, signature and numeric amount are required' });
+      }
       const p = await getProject(input.projectId, token);
       if (!p) return json(res, 401, { error: 'Unauthorized' });
 
