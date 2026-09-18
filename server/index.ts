@@ -17,13 +17,40 @@ function json(res: ServerResponse, status: number, data: unknown) {
   res.end(JSON.stringify(data));
 }
 
+const MAX_REQUEST_BODY_BYTES = 4 * 1024 * 1024;
+
+class RequestTooLargeError extends Error {
+  constructor() {
+    super('Request body exceeds the 4 MB application limit');
+    this.name = 'RequestTooLargeError';
+  }
+}
+
+class InvalidJsonError extends Error {
+  constructor() {
+    super('Request body must be valid JSON');
+    this.name = 'InvalidJsonError';
+  }
+}
+
 async function body(req: IncomingMessage) {
   let raw = '';
   for await (const chunk of req) {
-    raw += chunk;
-    if (raw.length > 32_000_000) throw new Error('Request too large');
+    raw += typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8');
+    if (Buffer.byteLength(raw, 'utf8') > MAX_REQUEST_BODY_BYTES) {
+      throw new RequestTooLargeError();
+    }
   }
   return raw;
+}
+
+async function jsonBody<T>(req: IncomingMessage): Promise<T> {
+  const raw = await body(req);
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    throw new InvalidJsonError();
+  }
 }
 
 function authToken(req: IncomingMessage) {
@@ -98,9 +125,9 @@ export async function requestHandler(
         return json(res, 503, { error: 'GEMINI_API_KEY is not configured on the server' });
       }
 
-      const state = JSON.parse(await body(req));
-      if (!state.businessName && !state.customBusiness) {
-        throw new Error('Business name or business description is required');
+      const state = await jsonBody<Parameters<typeof generateWebsite>[0]>(req);
+      if (!state || typeof state !== 'object' || (!state.businessName && !state.customBusiness)) {
+        return json(res, 400, { error: 'Business name or business description is required' });
       }
 
       const price = calculatePrice(state);
@@ -148,7 +175,7 @@ export async function requestHandler(
 
     if (url.pathname === '/api/payment/order' && req.method === 'POST') {
       const token = authToken(req);
-      const { projectId } = JSON.parse(await body(req));
+      const { projectId } = await jsonBody<{ projectId?: string }>(req);
       const p = await getProject(projectId, token);
       if (!p) return json(res, 401, { error: 'Unauthorized' });
       if (!['PREVIEW_READY', 'PAYMENT_PENDING'].includes(p.status)) {
@@ -178,7 +205,7 @@ export async function requestHandler(
 
     if (url.pathname === '/api/payment/verify' && req.method === 'POST') {
       const token = authToken(req);
-      const input = JSON.parse(await body(req));
+      const input = await jsonBody<{ projectId?: string; orderId?: string; paymentId?: string; signature?: string; amount?: number }>(req);
       const p = await getProject(input.projectId, token);
       if (!p) return json(res, 401, { error: 'Unauthorized' });
 
@@ -254,11 +281,16 @@ export async function requestHandler(
     res.end(data);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Request failed';
-    const status = /configured|credentials/i.test(message)
-      ? 503
-      : /Unauthorized/i.test(message)
-        ? 401
-        : 500;
+    const status =
+      error instanceof RequestTooLargeError
+        ? 413
+        : error instanceof InvalidJsonError
+          ? 400
+          : /configured|credentials/i.test(message)
+            ? 503
+            : /Unauthorized/i.test(message)
+              ? 401
+              : 500;
     if (!res.headersSent) json(res, status, { error: message });
     else res.end();
   }
