@@ -125,13 +125,30 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       globalThis.fetch = async (input, init) => {
         const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
         if (url.includes('generativelanguage.googleapis.com')) {
-          return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(websiteSpec) }] } }] }), {
+          const requestBody = typeof init?.body === 'string' ? JSON.parse(init.body) : {};
+          const prompt = requestBody?.contents?.[0]?.parts?.[0]?.text || '';
+          const response = prompt.includes("website planning assistant")
+            ? { category:'E-commerce', businessName:'Mumbai Threads', description:'A clothing shop selling curated apparel.', location:'Mumbai', phone:'', whatsapp:'+91 9000000000', email:'', address:'', hours:'', socials:'', brief:'My clothing shop is in Mumbai and I want a premium product website.', audience:'Fashion shoppers', styles:['Premium','Modern'], pages:['Home','Products','About','Contact'], sections:['Hero','Products','Testimonials','Contact'], features:['Product catalog','WhatsApp button','SEO setup'], businessDetails:{products:'40 products',productCategories:'Clothing'}, clarifyingQuestions:[] }
+            : websiteSpec;
+          return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(response) }] } }] }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
           });
         }
         return originalFetch(input, init);
       };
+
+      const directPlan = await httpRequest(server, '/api/direct-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brief: 'My clothing shop is in Mumbai and I want a premium product website.' }),
+      });
+      assert.equal(directPlan.status, 200);
+      const directBody = await directPlan.json() as Record<string, any>;
+      assert.equal(directBody.category, 'E-commerce');
+      assert.equal(directBody.businessName, 'Mumbai Threads');
+      assert.ok(Array.isArray(directBody.features));
+      assert.ok(Array.isArray(directBody.clarifyingQuestions));
 
       const generate = await httpRequest(server, '/api/generate', {
         method: 'POST',
