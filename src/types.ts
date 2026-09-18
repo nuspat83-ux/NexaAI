@@ -1,3 +1,5 @@
+import type { CatalogData } from './catalog';
+
 export type StepId=1|2|3|4|5|6|7|8|9|10;
 export type ProjectStatus='DRAFT'|'CONFIGURED'|'GENERATING'|'PREVIEW_READY'|'PAYMENT_PENDING'|'PAID'|'UNLOCKED'|'EXPORTED'|'DEPLOYED';
 export type Device='desktop'|'tablet'|'mobile';
