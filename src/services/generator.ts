@@ -26,10 +26,12 @@ async function request<T>(path:string, init?:RequestInit):Promise<T>{const r=awa
 export async function generateWebsite(state:BuilderState,onProgress:(label:string)=>void):Promise<WebsiteSpec>{
   const started=await request<{projectId:string;accessToken:string;status:string;price:number}>('/api/generate',{method:'POST',body:JSON.stringify(state)});
   setSession({...started});
+  const session=getProjectSession();
+  if(!session)throw new Error('Unable to initialize project session');
   const stages=['Analyzing requirements','Planning website','Creating design system','Writing business content','Processing images','Building pages','Optimizing responsive layout','Running quality checks','Preparing preview'];
   let seen='';
   for(let i=0;i<600;i++){
-    const p=await request<any>(`/api/projects/${encodeURIComponent(current.projectId)}`,{headers:{Authorization:`Bearer ${current.accessToken}`} } );
+    const p=await request<any>(`/api/projects/${encodeURIComponent(session.projectId)}`,{headers:{Authorization:`Bearer ${session.accessToken}`} } );
     if(p.generationStage&&p.generationStage!==seen){seen=p.generationStage;onProgress(seen);}
     if(p.status==='PREVIEW_READY'&&p.spec){setSession({...current!,status:p.status,price:p.price});return p.spec as WebsiteSpec;}
     if(p.generationError)throw new Error(p.generationError);
