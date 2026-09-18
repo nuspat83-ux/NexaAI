@@ -72,7 +72,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat > /tmp/nexaai-smoke.spec.mjs <<'EOF'
+          cat > .nexaai-smoke.spec.mjs <<'EOF
           import { test, expect } from 'playwright/test';
           test('NexaAI homepage and builder have no immediate runtime errors', async ({ page }) => {
             const errors = [];
@@ -87,7 +87,7 @@ jobs:
             expect(errors, errors.join('\\n')).toEqual([]);
           });
           EOF
-          npx playwright@latest test /tmp/nexaai-smoke.spec.mjs --reporter=line
+          npx playwright@latest test .nexaai-smoke.spec.mjs --reporter=line
 
       
       - name: Publish smoke status
