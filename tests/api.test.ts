@@ -85,6 +85,7 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       assert.equal(missingGemini.status, 503);
       assert.match(await missingGemini.text(), /GEMINI_API_KEY is not configured/);
 
+      process.env.GEMINI_API_KEY = 'test-gemini-key';
       const malformed = await httpRequest(server, '/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -99,7 +100,6 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       });
       assert.equal(oversized.status, 413);
 
-      process.env.GEMINI_API_KEY = 'test-gemini-key';
 
       const invalidShape = await httpRequest(server, '/api/generate', {
         method: 'POST',
