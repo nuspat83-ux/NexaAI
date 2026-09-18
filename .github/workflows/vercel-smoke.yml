@@ -65,6 +65,9 @@ jobs:
           grep -q '"error":"Invalid builder configuration"' /tmp/invalid.json
           echo "API boundary checks passed: invalid route=404, invalid builder configuration=400"
       
+      - name: Install Playwright for browser smoke
+        run: npm install --no-save --package-lock=false playwright@latest
+
       - name: Install Playwright Chromium
         run: npx playwright@latest install --with-deps chromium
 
