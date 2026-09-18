@@ -10,6 +10,7 @@ const validState = {
   creationMode: 'guided' as const,
   directBrief: '',
   businessDetails: {},
+  catalog: { mode: 'none', products: [], services: [], payment: 'unknown', delivery: {} },
   category: 'Bakery',
   customBusiness: '',
   businessName: 'Test Bakery',
