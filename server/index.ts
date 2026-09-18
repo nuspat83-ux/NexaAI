@@ -5,6 +5,7 @@ import { createProject, getProject, updateProject } from './store.js';
 import { calculatePrice, itemizePrice } from './pricing.js';
 import { generateWebsite, planDirectBrief } from './ai.js';
 import { websiteHtml } from './render.js';
+import { catalogModeForCategory } from '../src/catalog.js';
 import { assertPaymentConfig, createRazorpayOrder, verifyCheckoutSignature } from './payment.js';
 
 const dist = path.resolve('./dist');
@@ -67,6 +68,28 @@ function isValidGenerateState(value: unknown): value is Parameters<typeof genera
     return typeof a.name === 'string' && typeof a.type === 'string' && typeof a.url === 'string'
       && (a.data === undefined || typeof a.data === 'string');
   })) return false;
+  if (!s.catalog || typeof s.catalog !== 'object') return false;
+  const catalog = s.catalog as Record<string, unknown>;
+  if (!['products','menu','services','none'].includes(String(catalog.mode))) return false;
+  if (!Array.isArray(catalog.products) || !Array.isArray(catalog.services) || catalog.products.length > 100 || catalog.services.length > 100) return false;
+  const products = catalog.products as unknown[];
+  if (!products.every((product: unknown) => {
+    if (!product || typeof product !== 'object') return false;
+    const p = product as Record<string, unknown>;
+    return typeof p.id === 'string' && typeof p.name === 'string' && p.name.length <= 300
+      && (p.price === undefined || (typeof p.price === 'number' && Number.isFinite(p.price) && p.price >= 0))
+      && (p.salePrice === undefined || (typeof p.salePrice === 'number' && Number.isFinite(p.salePrice) && p.salePrice >= 0))
+      && (p.images === undefined || (Array.isArray(p.images) && p.images.length <= 8 && p.images.every((v: unknown) => typeof v === 'string')))
+      && (p.variants === undefined || (Array.isArray(p.variants) && p.variants.length <= 20));
+  })) return false;
+  const services = catalog.services as unknown[];
+  if (!services.every((service: unknown) => {
+    if (!service || typeof service !== 'object') return false;
+    const v = service as Record<string, unknown>;
+    return typeof v.id === 'string' && typeof v.name === 'string' && v.name.length <= 300
+      && (v.price === undefined || (typeof v.price === 'number' && Number.isFinite(v.price) && v.price >= 0));
+  })) return false;
+  if (catalog.mode !== 'none' && catalog.mode !== catalogModeForCategory(String(s.category || ''))) return false;
   return true;
 }
 
