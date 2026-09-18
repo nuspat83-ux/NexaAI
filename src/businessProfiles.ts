@@ -23,14 +23,14 @@ export interface BusinessProfile {
   generationContext: string;
 }
 
-const common = [
+const common: BusinessQuestion[] = [
   { key: 'businessName', label: 'Business / brand name', placeholder: 'e.g. Atelier 27' },
   { key: 'description', label: 'What does the business do?', placeholder: 'Tell customers what you offer and why it matters.', multiline: true },
   { key: 'location', label: 'Location', placeholder: 'e.g. Mumbai, India' },
   { key: 'phone', label: 'Phone', placeholder: '+91…' },
   { key: 'whatsapp', label: 'WhatsApp', placeholder: '+91…' },
   { key: 'email', label: 'Email', placeholder: 'hello@business.com' },
-] satisfies BusinessQuestion[];
+];
 
 export const businessProfiles: BusinessProfile[] = [
   {
