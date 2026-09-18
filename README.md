@@ -45,7 +45,7 @@ The preview is available before payment. Export/deployment remains locked until 
 
 ## Storage limitation on Vercel
 
-`server/store.ts` intentionally remains behind the existing store abstraction and uses JSON-file persistence for now. On Vercel, the default data directory is `/tmp/nexaai-data`, which is writable but ephemeral and not shared as durable production storage across function instances. This is not production-grade persistence. A real database or managed KV/database store must replace the JSON file before relying on cross-instance durability. The current asynchronous generation path uses Vercel `waitUntil`; that keeps the task inside the Function lifecycle, but it does not make the JSON store durable or guarantee that later polling requests land on the same instance.`
+`server/store.ts` intentionally remains behind the existing store abstraction and uses JSON-file persistence for now. On Vercel, the default data directory is `/tmp/nexaai-data`, which is writable but ephemeral and not shared as durable production storage across function instances. This is not production-grade persistence. A real database or managed KV/database store must replace the JSON file before relying on cross-instance durability. The current asynchronous generation path uses Vercel `waitUntil`; that keeps the task inside the Function lifecycle, but it does not make the JSON store durable or guarantee that later polling requests land on the same instance.
 
 ## Leads
 
