@@ -43,6 +43,7 @@ export interface CatalogData {
   products: Product[];
   services: ServiceItem[];
   payment?: 'whatsapp' | 'cod' | 'online' | 'both' | 'unknown';
+  orderFlow?: 'none' | 'whatsapp' | 'cart' | 'checkout';
   delivery?: {
     local?: boolean;
     shipping?: boolean;
@@ -92,9 +93,9 @@ export function catalogModeForCategory(category: string): CatalogMode {
   return 'none';
 }
 
-export function catalogFieldsForCategory(category: string): CatalogFieldConfig[] {
+export function catalogFieldsForCategory(category: string, businessHint = ''): CatalogFieldConfig[] {
   if (category === 'E-commerce') {
-    if (/clothing|fashion|apparel|dress|kurti|boutique/i.test(category)) {
+    if (/clothing|fashion|apparel|dress|kurti|boutique/i.test(businessHint)) {
       return [...commonFields, { key: 'size', label: 'Sizes', placeholder: 'S, M, L', optional: true }, { key: 'color', label: 'Colors', placeholder: 'Black, blue', optional: true }, { key: 'stock', label: 'Stock', placeholder: 'In stock / unknown', optional: true }];
     }
     return [...commonFields, { key: 'variants', label: 'Variants', placeholder: 'e.g. 128GB; 256GB', optional: true }, { key: 'stock', label: 'Stock', placeholder: 'In stock / unknown', optional: true }];
