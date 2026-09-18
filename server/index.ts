@@ -71,6 +71,7 @@ function isValidGenerateState(value: unknown): value is Parameters<typeof genera
   if (!s.catalog || typeof s.catalog !== 'object') return false;
   const catalog = s.catalog as Record<string, unknown>;
   if (!['products','menu','services','none'].includes(String(catalog.mode))) return false;
+  if (catalog.orderFlow !== undefined && !['none','whatsapp','cart','checkout'].includes(String(catalog.orderFlow))) return false;
   if (!Array.isArray(catalog.products) || !Array.isArray(catalog.services) || catalog.products.length > 100 || catalog.services.length > 100) return false;
   const products = catalog.products as unknown[];
   if (!products.every((product: unknown) => {
