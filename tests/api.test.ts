@@ -99,6 +99,14 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       });
       assert.equal(oversized.status, 413);
 
+      const invalidShape = await httpRequest(server, '/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ businessName: 'Bad Shape', styles: 'not-an-array' }),
+      });
+      assert.equal(invalidShape.status, 400);
+      assert.match(await invalidShape.text(), /Invalid builder configuration/);
+
       process.env.GEMINI_API_KEY = 'test-gemini-key';
       const websiteSpec = {
         business: 'Test Bakery',
@@ -151,6 +159,11 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       assert.equal(ready.status, 'PREVIEW_READY');
       assert.equal(ready.spec.business, 'Test Bakery');
       assert.equal(ready.generationStage, 'Preview ready');
+
+      const generatedPreview = ready.spec as Record<string, unknown>;
+      const previewHtml = (await import('../server/render.js')).websiteHtml(generatedPreview as any);
+      assert.match(previewHtml, /<main id="main">/);
+      assert.match(previewHtml, /application\/ld\+json/);
 
       const lockedExport = await httpRequest(server, `/api/projects/${started.projectId}/export`, {
         headers: { Authorization: `Bearer ${started.accessToken}` },
