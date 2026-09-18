@@ -109,4 +109,4 @@ jobs:
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
-            -d "{"state":"$state","context":"NexaAI smoke","description":"Build, tests, Vercel API boundary and browser smoke"}"
+            -d "$(jq -n --arg state "$state" '{state:$state,context:"NexaAI smoke",description:"Build, tests, Vercel API boundary and browser smoke"})'
