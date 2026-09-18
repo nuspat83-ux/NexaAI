@@ -49,7 +49,7 @@ export async function planDirectBrief(brief:string, clarification=''):Promise<Di
     if(!DIRECT_CATEGORIES.includes(x.category)||typeof x.businessName!=='string'||!Array.isArray(x.pages)||!Array.isArray(x.features)||!Array.isArray(x.sections)||!Array.isArray(x.styles)||!Array.isArray(x.clarifyingQuestions)||typeof x.businessDetails!=='object'||!['products','menu','services','none'].includes(x.catalogMode)||!['none','whatsapp','cart','checkout'].includes(x.orderFlow))throw new Error('AI direct plan failed NexaAI schema validation');
     const products=Array.isArray(x.products)?x.products.map((p:any)=>normalizeProduct(p)).filter(Boolean):[];
     const services=Array.isArray(x.services)?x.services.map((v:any)=>normalizeService(v)).filter(Boolean):[];
-    return {...x,brief:brief.trim(),businessDetails:x.businessDetails||{},products,services,catalogMode:x.catalogMode} as DirectPlan;
+    return {...x,brief:brief.trim(),businessDetails:x.businessDetails||{},products,services,catalogMode:x.catalogMode,orderFlow:x.orderFlow} as DirectPlan;
   }finally{clearTimeout(timer);}
 }
 
@@ -59,7 +59,7 @@ function normalizeProduct(p:any):Product|undefined{
   for(const key of ['description','currency','category','size','color','stock','sku'] as const)if(typeof p[key]==='string'&&p[key].trim())out[key]=p[key].trim();
   for(const key of ['price','salePrice'] as const)if(typeof p[key]==='number'&&Number.isFinite(p[key])&&p[key]>=0)out[key]=p[key];
   if(Array.isArray(p.images))out.images=p.images.filter((v:any)=>typeof v==='string').slice(0,8);
-  if(Array.isArray(p.variants))out.variants=p.variants.filter((v:any)=>v&&typeof v.label==='string'&&typeof v.value==='string').map((v:any)=>({id:typeof v.id==='string'&&v.id?v.id:crypto.randomUUID(),label:v.label,value:v.value})).slice(0,20);
+  if(Array.isArray(p.variants))out.variants=p.variants.filter((v:any)=>v&&typeof v.label==='string'&&typeof v.value==='string').map((v:any)=>({id:typeof v.id==='string'&&v.id?v.id:randomUUID(),label:v.label,value:v.value})).slice(0,20);
   if(Array.isArray(p.tags))out.tags=p.tags.filter((v:any)=>typeof v==='string').slice(0,20);
   if(typeof p.featured==='boolean')out.featured=p.featured;
   if(p.customFields&&typeof p.customFields==='object')out.customFields=Object.fromEntries(Object.entries(p.customFields).filter(([,v])=>typeof v==='string')) as Record<string,string>;
@@ -67,7 +67,7 @@ function normalizeProduct(p:any):Product|undefined{
 }
 function normalizeService(v:any):ServiceItem|undefined{
   if(!v||typeof v!=='object'||typeof v.name!=='string'||!v.name.trim())return undefined;
-  const out:ServiceItem={id:typeof v.id==='string'&&v.id?v.id:crypto.randomUUID(),name:v.name.trim()};
+  const out:ServiceItem={id:typeof v.id==='string'&&v.id?v.id:randomUUID(),name:v.name.trim()};
   for(const key of ['description','currency','category','image'] as const)if(typeof v[key]==='string'&&v[key].trim())out[key]=v[key].trim();
   if(typeof v.price==='number'&&Number.isFinite(v.price)&&v.price>=0)out.price=v.price;
   if(Array.isArray(v.tags))out.tags=v.tags.filter((x:any)=>typeof x==='string').slice(0,20);
