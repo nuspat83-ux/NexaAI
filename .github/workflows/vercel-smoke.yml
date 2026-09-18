@@ -33,6 +33,22 @@ jobs:
           echo "API response:"; head -c 1000 /tmp/health.json || true
           exit 1
 
+      - name: Verify API error boundaries
+        run: |
+          set -euo pipefail
+          unknown=$(curl -sS -o /tmp/unknown.json -w '%{http_code}' "$VERCEL_URL/api/no-such-route")
+          test "$unknown" = 404
+          grep -q '"error":"Not found"' /tmp/unknown.json
+          gemini=$(curl -sS -o /tmp/gemini.json -w '%{http_code}' -X POST "$VERCEL_URL/api/generate" -H 'Content-Type: application/json' --data '{"businessName":"Smoke Test"}')
+          if [ "$gemini" = 503 ]; then
+            grep -q 'GEMINI_API_KEY is not configured' /tmp/gemini.json
+          else
+            echo "Expected missing-Gemini deployment to return 503, got $gemini"
+            cat /tmp/gemini.json
+            exit 1
+          fi
+          echo "API boundary checks passed: invalid route=404, missing Gemini=503"
+      
       - name: Install Playwright Chromium
         run: npx playwright@latest install --with-deps chromium
 
