@@ -57,33 +57,16 @@ jobs:
             "brief":"A simple mobile-friendly cafe website.","audience":"Local cafe customers","plan":"Starter"
           }
           EOF
-          gen_code=$(curl -sS -o /tmp/generate.json -w '%{http_code}' -X POST "$VERCEL_URL/api/generate"             -H 'Content-Type: application/json' --data-binary @/tmp/generation-state.json)
+          gen_code=$(curl -sS -o /tmp/generate.json -w '%{http_code}' -X POST "$VERCEL_URL/api/generate" \
+            -H 'Content-Type: application/json' --data-binary @/tmp/generation-state.json)
           echo "Production /api/generate HTTP $gen_code"
           cat /tmp/generate.json
-          test "$gen_code" = 202
-          project_id=$(python -c "import json; print(json.load(open('/tmp/generate.json'))['projectId'])")
-          access_token=$(python -c "import json; print(json.load(open('/tmp/generate.json'))['accessToken'])")
-
-          for attempt in $(seq 1 90); do
-            status=$(curl -sS -o /tmp/project.json -w '%{http_code}' "$VERCEL_URL/api/projects/$project_id" -H "Authorization: Bearer $access_token" || true)
-            echo "Production project status attempt=$attempt HTTP=$status"
-            if [ "$status" = 200 ]; then
-              cat /tmp/project.json
-              if grep -q '"status":"PREVIEW_READY"' /tmp/project.json && grep -q '"spec"' /tmp/project.json; then
-                echo "REAL production customer generation reached PREVIEW_READY."
-                exit 0
-              fi
-              if grep -q '"generationError"' /tmp/project.json; then
-                echo "Production generation returned a handled error:"
-                head -c 2000 /tmp/project.json
-                exit 1
-              fi
-            else
-              echo "Production status endpoint returned an unexpected HTTP status:"
-              head -c 2000 /tmp/project.json || true
-              exit 1
-            fi
-            sleep 2
-          done
-          echo "Production generation did not reach PREVIEW_READY."
-          exit 1
+          if [ "$gen_code" != "200" ]; then
+            echo "Production generation did not return a preview; this is a real customer-flow failure."
+            exit 1
+          fi
+          grep -q '"status":"PREVIEW_READY"' /tmp/generate.json
+          grep -q '"projectId"' /tmp/generate.json
+          grep -q '"accessToken"' /tmp/generate.json
+          grep -q '"spec"' /tmp/generate.json
+          echo "REAL production customer generation reached PREVIEW_READY with a generated spec."
