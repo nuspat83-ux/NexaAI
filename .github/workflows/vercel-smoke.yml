@@ -58,10 +58,15 @@ jobs:
         run: |
           set -euo pipefail
           grep -q '"aiConfigured"[[:space:]]*:[[:space:]]*true' /tmp/health.json
-          response=$(curl -sS -X POST "$VERCEL_URL/api/direct-plan" \
+          code=$(curl -sS -o /tmp/direct-plan.json -w '%{http_code}' -X POST "$VERCEL_URL/api/direct-plan" \
             -H 'Content-Type: application/json' \
             --data '{"brief":"Create a simple mobile-friendly cafe website in Mumbai with a menu and WhatsApp ordering."}')
-          printf '%s' "$response" > /tmp/direct-plan.json
+          echo "Live /api/direct-plan HTTP $code"
+          if [ "$code" != "200" ]; then
+            echo "Safe Gemini diagnostic response:"
+            head -c 2000 /tmp/direct-plan.json || true
+            exit 1
+          fi
           grep -q '"category"' /tmp/direct-plan.json
           grep -q '"catalogMode"' /tmp/direct-plan.json
           echo "Live Gemini planning request succeeded; server reports GEMINI_API_KEY configured."
