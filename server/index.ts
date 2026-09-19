@@ -343,7 +343,7 @@ export async function requestHandler(
         ? 413
         : error instanceof InvalidJsonError
           ? 400
-          : /configured|credentials/i.test(message)
+          : /configured|credentials|temporarily unavailable|rate limit|quota limit/i.test(message)
             ? 503
             : /Unauthorized/i.test(message)
               ? 401
