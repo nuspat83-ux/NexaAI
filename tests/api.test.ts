@@ -132,15 +132,15 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
 
 
       const websiteSpec = {
-        business: 'Test Bakery',
-        tagline: 'Fresh every day.',
+        business: 'AI Invented Bakery',
+        tagline: 'Invented by AI.',
         seo: { title: 'Test Bakery', description: 'Fresh bakery in Mumbai.' },
         colors: { primary: '#C9A46C', secondary: '#111318', background: '#FFFFFF', text: '#151515' },
         typography: { heading: 'Inter', body: 'Inter' },
         nav: ['Home'],
         hero: { eyebrow: 'Bakery', headline: 'Fresh every day.', body: 'Bakes made for your neighbourhood.', cta: 'Visit us' },
         sections: [],
-        contact: { phone: '+91 9000000000', whatsapp: '+91 9000000000', email: 'hello@test-bakery.example', address: 'Mumbai', hours: 'Daily' },
+        contact: { phone: '+91 1111111111', whatsapp: '+91 1111111111', email: 'invented@example.com', address: 'Invented Street', hours: 'Never' },
         footer: 'Test Bakery',
       };
       globalThis.fetch = async (input, init) => {
@@ -221,6 +221,11 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       }
       assert.equal(ready.status, 'PREVIEW_READY');
       assert.equal(ready.spec.business, 'Test Bakery');
+      assert.equal(ready.spec.contact?.phone, validState.phone);
+      assert.equal(ready.spec.contact?.whatsapp, validState.whatsapp);
+      assert.equal(ready.spec.contact?.email, validState.email);
+      assert.equal(ready.spec.contact?.address, validState.address);
+      assert.equal(ready.spec.contact?.hours, validState.hours);
       assert.deepEqual(ready.spec.products?.[0]?.name, 'Croissant');
       assert.equal(ready.spec.products?.[0]?.price, 180);
       assert.equal(ready.generationStage, 'Preview ready');
@@ -320,6 +325,8 @@ test('premium experience keeps business-aware generation stages and catalog conf
   assert.match(app, /Running final checks/);
   assert.match(app, /Preview before payment/);
   assert.match(app, /progressFor\(s\)/);
+  assert.match(app, /setPaid\(false\);setApproved\(false\)/);
+  assert.match(app, /getProjectSession\(\)/);
   assert.match(css, /confidence-strip/);
   assert.match(css, /@media\(max-width:700px\)/);
 });
