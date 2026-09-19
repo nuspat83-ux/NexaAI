@@ -233,9 +233,10 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(validState),
       });
-      assert.equal(generate.status, 202);
-      const started = await generate.json() as { projectId:string; accessToken:string; price:number; status:string };
-      assert.equal(started.status, 'GENERATING');
+      assert.equal(generate.status, 200);
+      const started = await generate.json() as { projectId:string; accessToken:string; price:number; status:string; spec:any };
+      assert.equal(started.status, 'PREVIEW_READY');
+      assert.equal(started.spec.business, 'Test Bakery');
       assert.equal(started.price, 4999);
 
       const wrongToken = await httpRequest(server, `/api/projects/${encodeURIComponent(started.projectId)}`, {
@@ -243,28 +244,23 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       });
       assert.equal(wrongToken.status, 401);
 
-      let ready: any = null;
-      for (let attempt = 0; attempt < 40; attempt++) {
-        const response = await httpRequest(server, `/api/projects/${encodeURIComponent(started.projectId)}`, {
-          headers: { Authorization: `Bearer ${started.accessToken}` },
-        });
-        assert.equal(response.status, 200);
-        ready = await response.json();
-        if (ready.status === 'PREVIEW_READY') break;
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-      assert.equal(ready.status, 'PREVIEW_READY');
-      assert.equal(ready.spec.business, 'Test Bakery');
-      assert.equal(ready.spec.contact?.phone, validState.phone);
-      assert.equal(ready.spec.contact?.whatsapp, validState.whatsapp);
-      assert.equal(ready.spec.contact?.email, validState.email);
-      assert.equal(ready.spec.contact?.address, validState.address);
-      assert.equal(ready.spec.contact?.hours, validState.hours);
-      assert.deepEqual(ready.spec.products?.[0]?.name, 'Croissant');
-      assert.equal(ready.spec.products?.[0]?.price, 180);
-      assert.equal(ready.generationStage, 'Preview ready');
+      const ready = await httpRequest(server, `/api/projects/${encodeURIComponent(started.projectId)}`, {
+        headers: { Authorization: `Bearer ${started.accessToken}` },
+      });
+      assert.equal(ready.status, 200);
+      const readyBody = await ready.json() as any;
+      assert.equal(readyBody.status, 'PREVIEW_READY');
+      assert.equal(readyBody.spec.business, 'Test Bakery');
+      assert.equal(readyBody.spec.contact?.phone, validState.phone);
+      assert.equal(readyBody.spec.contact?.whatsapp, validState.whatsapp);
+      assert.equal(readyBody.spec.contact?.email, validState.email);
+      assert.equal(readyBody.spec.contact?.address, validState.address);
+      assert.equal(readyBody.spec.contact?.hours, validState.hours);
+      assert.deepEqual(readyBody.spec.products?.[0]?.name, 'Croissant');
+      assert.equal(readyBody.spec.products?.[0]?.price, 180);
+      assert.equal(readyBody.generationStage, 'Preview ready');
 
-      const generatedPreview = ready.spec as Record<string, unknown>;
+      const generatedPreview = readyBody.spec as Record<string, unknown>;
       const previewHtml = (await import('../server/render.js')).websiteHtml(generatedPreview as any);
       assert.match(previewHtml, /<main id="main">/);
 
