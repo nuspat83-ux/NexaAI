@@ -109,46 +109,18 @@ jobs:
           }
           EOF
           code=$(curl -sS -o /tmp/generation-create.json -w '%{http_code}' -X POST "$VERCEL_URL/api/generate" -H 'Content-Type: application/json' --data-binary @/tmp/generation-state.json)
-          test "$code" = 202
-          grep -q '"status":"GENERATING"' /tmp/generation-create.json
+          echo "Live /api/generate HTTP $code"
+          if [ "$code" != "200" ]; then
+            echo "Safe production generation response:"
+            head -c 4000 /tmp/generation-create.json || true
+            exit 1
+          fi
+          cat /tmp/generation-create.json
+          grep -q '"status":"PREVIEW_READY"' /tmp/generation-create.json
           grep -q '"projectId"' /tmp/generation-create.json
           grep -q '"accessToken"' /tmp/generation-create.json
-          echo "Live /api/generate request accepted with HTTP 202 and entered GENERATING state."
-          echo "Polling the real customer status endpoint to capture the first production completion/error response."
-          project_id=$(python - <<'PY'
-import json
-print(json.load(open('/tmp/generation-create.json'))['projectId'])
-PY
-)
-          access_token=$(python - <<'PY'
-import json
-print(json.load(open('/tmp/generation-create.json'))['accessToken'])
-PY
-)
-          for attempt in $(seq 1 90); do
-            status=$(curl -sS -o /tmp/generation-status.json -w '%{http_code}' "$VERCEL_URL/api/projects/$project_id" -H "Authorization: Bearer $access_token" || true)
-            echo "Generation status attempt=$attempt HTTP=$status"
-            if [ "$status" = "200" ]; then
-              cat /tmp/generation-status.json
-              if grep -q '"status":"PREVIEW_READY"' /tmp/generation-status.json && grep -q '"spec"' /tmp/generation-status.json; then
-                echo "REAL production generation reached PREVIEW_READY with a generated spec."
-                exit 0
-              fi
-              if grep -q '"generationError"' /tmp/generation-status.json; then
-                echo "Production generation returned a handled generation error:"
-                head -c 2000 /tmp/generation-status.json
-                exit 1
-              fi
-            else
-              echo "Production status endpoint response:"
-              head -c 2000 /tmp/generation-status.json || true
-              exit 1
-            fi
-            sleep 2
-          done
-          echo "Production generation did not reach PREVIEW_READY within the smoke timeout."
-          cat /tmp/generation-status.json || true
-          exit 1
+          grep -q '"spec"' /tmp/generation-create.json
+          echo "REAL production /api/generate returned PREVIEW_READY with a generated spec and no polling dependency."
       
       - name: Verify API error boundaries
         run: |
