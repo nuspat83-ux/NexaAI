@@ -9,7 +9,7 @@ import {captureLead} from './services/leads';
 
 const labels=['Category','Business','Style','Structure','Pages','Features','Assets','Your brief','Generate','Preview'];
 const progressFor=(s:BuilderState)=>{const out=['Business','Content','Design','Features'];if(s.catalog.mode!=='none')out.push(s.catalog.mode==='products'?'Products':'Services');out.push('Generate','Preview');return out};
-const generationStages=['Analyzing requirements','Planning website','Creating design system','Writing business content','Processing images','Building pages','Optimizing responsive layout','Running quality checks','Preparing preview'];
+const generationStages=['Understanding your business','Planning your website','Creating your design','Writing your content','Building your pages','Adding your products','Optimizing for mobile','Running final checks','Preparing your preview'];
 
 export default function App(){
  const [view,setView]=useState<'home'|'builder'|'pricing'>('home');const [step,setStep]=useState(1);const [s,setS]=useState<BuilderState>({...initialState});
