@@ -313,6 +313,17 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
   }
 });
 
+test('premium experience keeps business-aware generation stages and catalog confidence copy', async () => {
+  const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
+  assert.match(app, /Understanding your business/);
+  assert.match(app, /Running final checks/);
+  assert.match(app, /Preview before payment/);
+  assert.match(app, /progressFor\(s\)/);
+  assert.match(css, /confidence-strip/);
+  assert.match(css, /@media\(max-width:700px\)/);
+});
+
 test('Vercel function and build configuration expose the API boundary', async () => {
   const apiSource = await readFile(new URL('../api/[...path].ts', import.meta.url), 'utf8');
   assert.match(apiSource, /waitUntil/);
