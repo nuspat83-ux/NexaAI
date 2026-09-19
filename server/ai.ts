@@ -42,7 +42,7 @@ export async function planDirectBrief(brief:string, clarification=''):Promise<Di
   if(brief.trim().length<12)throw new Error('Tell NexaAI a little more about the website you want');
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),TIMEOUT_MS);
   try{
-    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel()}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({contents:[{role:'user',parts:[{text:directPrompt(brief,clarification)}]}],generationConfig:{responseMimeType:'application/json'}})});
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel()}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},signal:controller.signal,body:JSON.stringify({contents:[{role:'user',parts:[{text:directPrompt(brief,clarification)}]}],generationConfig:{responseMimeType:'application/json'}})});
     if(r.status===429||r.status>=500)throw new RetryableAIError(`Gemini temporary error ${r.status}`);
     if(!r.ok)throw new Error(`Gemini request failed (${r.status})`);
     const p:any=await r.json(),text=p?.candidates?.[0]?.content?.parts?.map((z:any)=>z.text||'').join('');
