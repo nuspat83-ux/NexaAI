@@ -186,14 +186,38 @@ export async function requestHandler(
       const price = calculatePrice(state);
       const created = await createProject(state, price);
       await updateProject(created.project.id, created.accessToken, { status: 'CONFIGURED' });
-      scheduleBackground(runGeneration(created.project.id, created.accessToken, state));
 
-      return json(res, 202, {
-        projectId: created.project.id,
-        accessToken: created.accessToken,
-        status: 'GENERATING',
-        price,
-      });
+      try {
+        const spec = await generateWebsite(state, stage =>
+          updateProject(created.project.id, created.accessToken, {
+            status: 'GENERATING',
+            generationStage: stage,
+            generationError: undefined,
+          }),
+        );
+        await updateProject(created.project.id, created.accessToken, {
+          spec,
+          status: 'PREVIEW_READY',
+          generationStage: 'Preview ready',
+          generationError: undefined,
+        });
+        return json(res, 200, {
+          projectId: created.project.id,
+          accessToken: created.accessToken,
+          status: 'PREVIEW_READY',
+          price,
+          spec: { ...spec, assets: [] },
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'We could not finish generating your website. Please retry.';
+        await updateProject(created.project.id, created.accessToken, {
+          status: 'DRAFT',
+          generationError: message,
+        });
+        return json(res, /quota limit|rate limit|temporarily unavailable/i.test(message) ? 503 : 500, {
+          error: message,
+        });
+      }
     }
 
     const match = url.pathname.match(/^\/api\/projects\/([^/]+)$/);
