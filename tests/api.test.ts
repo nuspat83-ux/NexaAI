@@ -218,6 +218,12 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       assert.equal(serviceBody.services[0].name, 'AC repair');
       assert.equal(serviceBody.products.length, 0);
 
+      const cafePreviewHtml = (await import('../server/render.js')).websiteHtml({business:'Cafe Site',catalogMode:'menu',orderFlow:'whatsapp',payment:'whatsapp',contact:{phone:'',whatsapp:'+919000000000',email:'',address:'Mumbai',hours:'9am-9pm'},products:[{id:'m1',name:'Masala Chai',description:'Spiced tea',price:120,category:'Drinks'}],services:[],sections:[],content:'Cafe',imageRequirements:[],cta:'Order',responsive:'Responsive',colors:{primary:'#111',secondary:'#222'},assets:[]} as any);
+      assert.match(cafePreviewHtml, /Masala Chai/);
+      assert.match(cafePreviewHtml, /Menu/);
+      assert.match(cafePreviewHtml, /Order on WhatsApp/);
+      assert.doesNotMatch(cafePreviewHtml, /Featured products/);
+
       const generate = await httpRequest(server, '/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
