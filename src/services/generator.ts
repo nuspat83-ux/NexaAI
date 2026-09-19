@@ -24,22 +24,18 @@ export const getProjectSession=()=>current;
 async function request<T>(path:string, init?:RequestInit):Promise<T>{const r=await fetch(path,{...init,headers:{'Content-Type':'application/json',...(init?.headers||{})}});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||`Request failed (${r.status})`);return data as T;}
 
 export async function generateWebsite(state:BuilderState,onProgress:(label:string)=>void):Promise<WebsiteSpec>{
-  const started=await request<{projectId:string;accessToken:string;status:string;price:number}>('/api/generate',{method:'POST',body:JSON.stringify(state)});
+  const stages=['Understanding your business','Planning your website','Creating your design','Writing your content','Building your pages','Adding your products','Optimizing for mobile','Running final checks','Preparing your preview'];
+  onProgress(stages[0]);
+  const started=await request<{projectId:string;accessToken:string;status:string;price:number;spec?:WebsiteSpec}>('/api/generate',{method:'POST',body:JSON.stringify(state)});
   setSession({...started});
   const session=getProjectSession();
   if(!session)throw new Error('Unable to initialize project session');
-  const stages=['Analyzing requirements','Planning website','Creating design system','Writing business content','Processing images','Building pages','Optimizing responsive layout','Running quality checks','Preparing preview'];
-  let seen='';
-  for(let i=0;i<600;i++){
-    const p=await request<any>(`/api/projects/${encodeURIComponent(session.projectId)}`,{headers:{Authorization:`Bearer ${session.accessToken}`} } );
-    if(p.generationStage&&p.generationStage!==seen){seen=p.generationStage;onProgress(seen);}
-    if(p.status==='PREVIEW_READY'&&p.spec){setSession({...session,status:p.status,price:p.price});return p.spec as WebsiteSpec;}
-    if(p.generationError)throw new Error(p.generationError);
-    if(p.status==='DRAFT'&&i>2)throw new Error('Generation failed before preview was prepared');
-    if(!seen&&i===0)onProgress(stages[0]);
-    await new Promise(r=>setTimeout(r,1000));
+  if(started.status==='PREVIEW_READY'&&started.spec){
+    setSession({...session,status:started.status,price:started.price});
+    for(const stage of stages)onProgress(stage);
+    return {...started.spec,assets:state.assets} as WebsiteSpec;
   }
-  throw new Error('Generation timed out. Please retry.');
+  throw new Error('Generation did not return a preview. Please retry.');
 }
 
 export async function approveProject(){if(!current)throw new Error('No generated project');return request<{status:string}>(`/api/projects/${current.projectId}/approve`,{method:'POST',headers:{Authorization:`Bearer ${current.accessToken}`}});}
