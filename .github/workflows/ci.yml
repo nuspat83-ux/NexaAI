@@ -16,3 +16,65 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+      - name: Verify real production customer generation flow
+        run: |
+          set -euo pipefail
+          export VERCEL_URL=https://nexa-ai-git-main-nuspat83-9991.vercel.app
+          for attempt in $(seq 1 60); do
+            code=$(curl -sS -o /tmp/home.html -w '%{http_code}' "$VERCEL_URL/" || true)
+            api=$(curl -sS -o /tmp/health.json -w '%{http_code}' "$VERCEL_URL/api/health" || true)
+            if [ "$code" = 200 ] && [ "$api" = 200 ]; then break; fi
+            sleep 5
+          done
+          grep -q '"aiConfigured"[[:space:]]*:[[:space:]]*true' /tmp/health.json
+
+          plan_code=$(curl -sS -o /tmp/direct-plan.json -w '%{http_code}' -X POST "$VERCEL_URL/api/direct-plan"             -H 'Content-Type: application/json'             --data '{"brief":"Create a simple mobile-friendly cafe website in Mumbai with a menu and WhatsApp ordering."}')
+          echo "Production /api/direct-plan HTTP $plan_code"
+          test "$plan_code" = 200
+          grep -q '"category"' /tmp/direct-plan.json
+          grep -q '"catalogMode"' /tmp/direct-plan.json
+
+          cat > /tmp/generation-state.json <<'EOF'
+          {
+            "creationMode":"direct",
+            "directBrief":"Create a simple mobile-friendly cafe website in Mumbai with a menu and WhatsApp ordering.",
+            "businessDetails":{},
+            "catalog":{"mode":"menu","products":[{"id":"ci-menu-1","name":"Masala Chai","price":120,"category":"Drinks","images":[]}],"services":[],"payment":"whatsapp","orderFlow":"whatsapp","delivery":{"areas":"Mumbai"}},
+            "category":"Cafe","customBusiness":"","businessName":"NexaAI CI Cafe","tagline":"A simple cafe website.",
+            "description":"A cafe website used for production generation verification.","location":"Mumbai","phone":"","whatsapp":"","email":"","address":"","hours":"Daily","socials":"","existingWebsite":"",
+            "styles":["Modern"],"primary":"#111111","secondary":"#FFFFFF","font":"Inter","theme":"ai",
+            "sections":["Hero","Menu","Contact"],"pages":["Home","Menu","Contact"],"features":["WhatsApp button"],"assets":[],
+            "brief":"A simple mobile-friendly cafe website.","audience":"Local cafe customers","plan":"Starter"
+          }
+          EOF
+          gen_code=$(curl -sS -o /tmp/generate.json -w '%{http_code}' -X POST "$VERCEL_URL/api/generate"             -H 'Content-Type: application/json' --data-binary @/tmp/generation-state.json)
+          echo "Production /api/generate HTTP $gen_code"
+          cat /tmp/generate.json
+          test "$gen_code" = 202
+          project_id=$(python -c "import json; print(json.load(open('/tmp/generate.json'))['projectId'])")
+          access_token=$(python -c "import json; print(json.load(open('/tmp/generate.json'))['accessToken'])")
+
+          for attempt in $(seq 1 90); do
+            status=$(curl -sS -o /tmp/project.json -w '%{http_code}' "$VERCEL_URL/api/projects/$project_id" -H "Authorization: Bearer $access_token" || true)
+            echo "Production project status attempt=$attempt HTTP=$status"
+            if [ "$status" = 200 ]; then
+              cat /tmp/project.json
+              if grep -q '"status":"PREVIEW_READY"' /tmp/project.json && grep -q '"spec"' /tmp/project.json; then
+                echo "REAL production customer generation reached PREVIEW_READY."
+                exit 0
+              fi
+              if grep -q '"generationError"' /tmp/project.json; then
+                echo "Production generation returned a handled error:"
+                head -c 2000 /tmp/project.json
+                exit 1
+              fi
+            else
+              echo "Production status endpoint returned an unexpected HTTP status:"
+              head -c 2000 /tmp/project.json || true
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "Production generation did not reach PREVIEW_READY."
+          exit 1
