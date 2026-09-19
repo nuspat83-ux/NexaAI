@@ -8,7 +8,7 @@ import {generateWebsite,getProjectSession,approveProject,createPaymentOrder,veri
 import {captureLead} from './services/leads';
 
 const labels=['Category','Business','Style','Structure','Pages','Features','Assets','Your brief','Generate','Preview'];
-const progressFor=(s:BuilderState)=>{const out=['Business','Content','Design','Features'];if(s.catalog.mode!=='none')out.push(s.catalog.mode==='products'?'Products':'Services');out.push('Generate','Preview');return out};
+const progressFor=(s:BuilderState)=>{const out=['Business','Content','Design','Features'];if(s.catalog.mode==='products')out.push('Products');else if(s.catalog.mode==='services')out.push('Services');out.push('Generate','Preview');return out};
 const generationStages=['Understanding your business','Planning your website','Creating your design','Writing your content','Building your pages','Adding your products','Optimizing for mobile','Running final checks','Preparing your preview'];
 
 export default function App(){
