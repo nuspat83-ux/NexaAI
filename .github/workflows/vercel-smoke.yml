@@ -54,6 +54,19 @@ jobs:
           echo "API response:"; head -c 1000 /tmp/health.json || true
           exit 1
 
+      - name: Verify live Gemini configuration and generation request
+        run: |
+          set -euo pipefail
+          grep -q '"aiConfigured"[[:space:]]*:[[:space:]]*true' /tmp/health.json
+          response=$(curl -sS -X POST "$VERCEL_URL/api/direct-plan" \
+            -H 'Content-Type: application/json' \
+            --data '{"brief":"Create a simple mobile-friendly cafe website in Mumbai with a menu and WhatsApp ordering."}')
+          printf '%s' "$response" > /tmp/direct-plan.json
+          grep -q '"category"' /tmp/direct-plan.json
+          grep -q '"catalogMode"' /tmp/direct-plan.json
+          echo "Live Gemini planning request succeeded; server reports GEMINI_API_KEY configured."
+          echo "Response fields verified without exposing credentials."
+      
       - name: Verify API error boundaries
         run: |
           set -euo pipefail
