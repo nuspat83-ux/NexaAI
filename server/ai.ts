@@ -46,8 +46,14 @@ export async function planDirectBrief(brief:string, clarification=''):Promise<Di
   if(brief.trim().length<12)throw new Error('Tell NexaAI a little more about the website you want');
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),TIMEOUT_MS);
   try{
-    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel()}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},signal:controller.signal,body:JSON.stringify({contents:[{role:'user',parts:[{text:directPrompt(brief,clarification)}]}],generationConfig:{responseMimeType:'application/json'}})});
-    if(isTransientStatus(r.status))throw new RetryableAIError(`Gemini temporary error ${r.status}`);
+    let r: Response|undefined;
+    for(let attempt=0;attempt<=MAX_RETRIES;attempt++){
+      r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel()}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},signal:controller.signal,body:JSON.stringify({contents:[{role:'user',parts:[{text:directPrompt(brief,clarification)}]}],generationConfig:{responseMimeType:'application/json'}})});
+      if(!isTransientStatus(r.status))break;
+      if(attempt===MAX_RETRIES)throw new RetryableAIError('Gemini is temporarily unavailable. Please try again in a moment.');
+      await waitForRetry(attempt);
+    }
+    if(!r)throw new Error('Gemini request failed');
     if(!r.ok)throw new Error(`Gemini request failed (${r.status})`);
     const p:any=await r.json(),text=p?.candidates?.[0]?.content?.parts?.map((z:any)=>z.text||'').join('');
     if(!text)throw new RetryableAIError('Gemini returned an empty response');
