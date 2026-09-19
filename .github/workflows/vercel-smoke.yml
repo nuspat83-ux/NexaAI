@@ -82,6 +82,35 @@ jobs:
           sed -i "s/\.getByRole('button', { name: 'Start building' }).click()/\.getByRole('button', { name: 'Start building' }).first().click()/" .nexaai-smoke.spec.mjs
           npx playwright@latest test .nexaai-smoke.spec.mjs --reporter=line
 
+      - name: Verify responsive application layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > .nexaai-responsive.spec.mjs <<'EOF'
+          import { test, expect } from 'playwright/test';
+          const viewports = [
+            { name: 'mobile', width: 390, height: 844 },
+            { name: 'tablet', width: 768, height: 1024 },
+            { name: 'desktop', width: 1280, height: 720 },
+          ];
+          for (const viewport of viewports) {
+            test('NexaAI ' + viewport.name + ' has no horizontal overflow and exposes Direct mode', async ({ browser }) => {
+              const page = await browser.newPage({ viewport: { width: viewport.width, height: viewport.height } });
+              const errors = [];
+              page.on('pageerror', e => errors.push('pageerror: ' + e.message));
+              page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+              await page.goto(process.env.VERCEL_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+              await expect(page.getByText('NexaAI', { exact: true }).first()).toBeVisible();
+              const dimensions = await page.evaluate(() => ({ innerWidth: window.innerWidth, scrollWidth: document.documentElement.scrollWidth }));
+              expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.innerWidth + 1);
+              await page.getByRole('button', { name: 'Start building' }).first().click();
+              await expect(page.getByText('NexaAI Direct', { exact: true })).toBeVisible();
+              expect(errors).toEqual([]);
+              await page.close();
+            });
+          }
+          EOF
+          npx playwright@latest test .nexaai-responsive.spec.mjs --reporter=line
       - name: Publish smoke status
         if: always()
         env:
