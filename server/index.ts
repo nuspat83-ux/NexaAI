@@ -132,10 +132,10 @@ async function runGeneration(
       generationStage: 'Preview ready',
       generationError: undefined,
     });
-  } catch (error) {
+  } catch {
     await updateProject(projectId, accessToken, {
       status: 'DRAFT',
-      generationError: error instanceof Error ? error.message : 'Generation failed',
+      generationError: 'We could not finish generating your website. Please retry.',
     });
   }
 }
