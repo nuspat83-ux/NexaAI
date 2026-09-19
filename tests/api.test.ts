@@ -48,6 +48,7 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
   const originalEnv = {
     dataDir: process.env.NEXAAI_DATA_DIR,
     gemini: process.env.GEMINI_API_KEY,
+    geminiModel: process.env.GEMINI_MODEL,
     razorpayKeyId: process.env.RAZORPAY_KEY_ID,
     razorpaySecret: process.env.RAZORPAY_KEY_SECRET,
   };
@@ -57,6 +58,7 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
   delete process.env.GEMINI_API_KEY;
   delete process.env.RAZORPAY_KEY_ID;
   delete process.env.RAZORPAY_KEY_SECRET;
+  process.env.GEMINI_MODEL = 'gemini-2.0-flash';
 
   try {
     const { requestHandler } = await import('../server/index.js');
@@ -146,6 +148,8 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
       globalThis.fetch = async (input, init) => {
         const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
         if (url.includes('generativelanguage.googleapis.com')) {
+          assert.match(url, /\/models\/gemini-3\.5-flash:generateContent$/);
+          assert.equal((init?.headers as Record<string,string>)?.['x-goog-api-key'], 'test-gemini-key');
           const requestBody = typeof init?.body === 'string' ? JSON.parse(init.body) : {};
           const prompt = requestBody?.contents?.[0]?.parts?.[0]?.text || '';
           const response = prompt.includes("website planning assistant")
@@ -342,6 +346,7 @@ test('Vercel-compatible API handler covers routing, auth, generation, payment co
     globalThis.fetch = originalFetch;
     if (originalEnv.dataDir === undefined) delete process.env.NEXAAI_DATA_DIR; else process.env.NEXAAI_DATA_DIR = originalEnv.dataDir;
     if (originalEnv.gemini === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = originalEnv.gemini;
+    if (originalEnv.geminiModel === undefined) delete process.env.GEMINI_MODEL; else process.env.GEMINI_MODEL = originalEnv.geminiModel;
     if (originalEnv.razorpayKeyId === undefined) delete process.env.RAZORPAY_KEY_ID; else process.env.RAZORPAY_KEY_ID = originalEnv.razorpayKeyId;
     if (originalEnv.razorpaySecret === undefined) delete process.env.RAZORPAY_KEY_SECRET; else process.env.RAZORPAY_KEY_SECRET = originalEnv.razorpaySecret;
     await rm(dataDir, { recursive: true, force: true });
