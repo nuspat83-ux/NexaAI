@@ -101,7 +101,8 @@ jobs:
               page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
               await page.goto(process.env.VERCEL_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
               await expect(page.getByText('NexaAI', { exact: true }).first()).toBeVisible();
-              const dimensions = await page.evaluate(() => ({ innerWidth: window.innerWidth, scrollWidth: document.documentElement.scrollWidth }));
+              const dimensions = await page.evaluate(() => { const offenders = Array.from(document.querySelectorAll('*')).map(el => { const rect = el.getBoundingClientRect(); return { tag: el.tagName, cls: el.className?.toString?.() || '', right: Math.round(rect.right), width: Math.round(rect.width) }; }).filter(x => x.right > window.innerWidth + 1).sort((a,b) => b.right - a.right).slice(0,10); return { innerWidth: window.innerWidth, scrollWidth: document.documentElement.scrollWidth, offenders }; });
+              console.log(JSON.stringify(dimensions));
               expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.innerWidth + 1);
               await page.getByRole('button', { name: 'Start building' }).first().click();
               await expect(page.getByText('NexaAI Direct', { exact: true })).toBeVisible();
